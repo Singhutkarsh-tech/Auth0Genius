@@ -13,6 +13,7 @@ import {
 import { identifyProvider, synthesize, reconcileGuide } from './synthesis';
 import { assertStageAdvance } from './state';
 import { validateRemoteUrl } from './network';
+import type { SearchResult } from './retrieval';
 export type Context = {
   useCase?: string;
   identity?: { name: string; website: string };
@@ -20,6 +21,10 @@ export type Context = {
   sources: Retrieved[];
   attempted: string[];
   draft?: Guide;
+  identityOptions?: import('./synthesis').IdentityCandidate[];
+  identityResults?: SearchResult[];
+  chosenCandidateIndex?: number;
+  identityUrl?: string;
 };
 export function configurationError() {
   const missing = ['OPENAI_API_KEY', 'TAVILY_API_KEY'].filter((k) => !process.env[k]);
@@ -29,21 +34,60 @@ export function configurationError() {
 }
 export type ExecutionResult = {
   claimed: boolean;
-  outcome: 'advanced' | 'leased' | 'terminal' | 'superseded' | 'failed' | 'retry';
+  outcome: 'advanced' | 'leased' | 'terminal' | 'superseded' | 'failed' | 'retry' | 'blocked';
   leaseUntil: string | null;
   retryAfterMs: number;
 };
 export function executionState(job: { status: string; leaseUntil: Date | null }) {
   const terminal = ['completed', 'failed'].includes(job.status);
+  const blocked = job.status === 'blocked';
   const remaining = Math.max(0, (job.leaseUntil?.getTime() ?? 0) - Date.now());
   return {
-    claimable: !terminal && !remaining,
+    claimable: !terminal && !blocked && !remaining,
+    blocked,
     leaseUntil: job.leaseUntil?.toISOString() ?? null,
-    retryAfterMs: terminal ? 0 : remaining,
+    retryAfterMs: terminal || blocked ? 0 : remaining,
     terminal,
   };
 }
-export async function advanceJob(id: string): Promise<ExecutionResult> {
+export async function advanceJob(
+  id: string,
+  selection?: { candidateIndex?: number; officialUrl?: string },
+): Promise<ExecutionResult> {
+  if (selection?.candidateIndex !== undefined || selection?.officialUrl) {
+    const current = await db.researchJob.findUnique({ where: { id } });
+    if (current?.status === 'blocked' && current.currentStage === 0) {
+      const context = current.context as unknown as Context;
+      if (
+        selection.candidateIndex !== undefined &&
+        (!Number.isInteger(selection.candidateIndex) ||
+          !context.identityResults?.[selection.candidateIndex])
+      )
+        return { claimed: false, outcome: 'blocked', leaseUntil: null, retryAfterMs: 0 };
+      if (selection.officialUrl) {
+        validateRemoteUrl(selection.officialUrl);
+        const parsed = new URL(selection.officialUrl);
+        if (parsed.protocol !== 'https:')
+          return { claimed: false, outcome: 'blocked', leaseUntil: null, retryAfterMs: 0 };
+        context.identityUrl = parsed.origin;
+        context.chosenCandidateIndex = undefined;
+        context.identityResults = undefined;
+        context.identityOptions = undefined;
+      }
+      if (selection.candidateIndex !== undefined)
+        context.chosenCandidateIndex = selection.candidateIndex;
+      const selected = await db.researchJob.updateMany({
+        where: { id, status: 'blocked', currentStage: 0 },
+        data: {
+          context: context as unknown as Prisma.InputJsonValue,
+          status: 'queued',
+          error: null,
+        },
+      });
+      if (!selected.count)
+        return { claimed: false, outcome: 'leased', leaseUntil: null, retryAfterMs: 500 };
+    }
+  }
   const now = new Date();
   const leaseUntil = new Date(Date.now() + 150000);
   const lease = await db.researchJob.updateMany({
@@ -59,7 +103,7 @@ export async function advanceJob(id: string): Promise<ExecutionResult> {
     const state = executionState(current);
     return {
       claimed: false,
-      outcome: state.terminal ? 'terminal' : 'leased',
+      outcome: state.terminal ? 'terminal' : state.blocked ? 'blocked' : 'leased',
       leaseUntil: state.leaseUntil,
       retryAfterMs: state.retryAfterMs,
     };
@@ -75,19 +119,82 @@ export async function advanceJob(id: string): Promise<ExecutionResult> {
 
     switch (job.currentStage) {
       case 0: {
-        let found = await searchWeb(`${job.query} official website`);
-        if (!identityCandidates(found, job.query).length) {
+        let found: SearchResult[];
+        if (context.chosenCandidateIndex !== undefined && context.identityResults) {
+          found = [context.identityResults[context.chosenCandidateIndex]];
+        } else {
+          try {
+            found = await searchWeb(
+              context.identityUrl
+                ? `${new URL(context.identityUrl).hostname} OAuth developer API documentation official`
+                : `${job.query} ${context.useCase ?? ''} official company product website`,
+            );
+          } catch (error) {
+            if (!context.identityUrl) throw error;
+            found = [];
+            context.attempted.push('Search unavailable; validating the supplied website directly');
+          }
+        }
+        if (context.identityUrl) {
+          // Read the user-supplied page itself; search ranking cannot replace its identity.
+          const supplied = await retrieve(
+            [{ title: 'User supplied provider website', url: context.identityUrl, content: '' }],
+            providerDomain(context.identityUrl),
+          );
+          context.attempted.push(...supplied.attempts);
+          found = [...supplied.sources.map((source) => ({
+            title: source.title,
+            url: source.url,
+            content: source.content ?? source.summary,
+          })), ...found];
+        }
+        if (!context.identityUrl && !identityCandidates(found, job.query).length) {
           context.attempted.push(
             `Initial discovery had no provider-domain candidate: ${found.map((r) => r.url).join(', ')}`,
           );
-          found = await searchWeb(`${job.query} OAuth official developer documentation`);
+          try {
+            found = await searchWeb(
+              `${job.query} ${context.useCase ?? ''} OAuth official developer documentation`,
+            );
+          } catch (error) {
+            if (!context.identityUrl) throw error;
+            context.attempted.push('Secondary search unavailable; supplied-site evidence retained');
+          }
         }
-        found = identityCandidates(found, job.query);
+        found = identityCandidates(found, context.identityUrl ?? job.query);
         context.attempted.push(
           'Searched for provider identity and official developer documentation',
           `Discovery URLs (not verified evidence): ${found.map((result) => result.url).join(', ')}`,
         );
-        context.identity = await identifyProvider(job.query, found);
+        const identity = await identifyProvider(
+          job.query,
+          found,
+          context.useCase,
+          context.identityUrl,
+        );
+        if (identity.ambiguous) {
+          context.identityOptions = identity.candidates;
+          context.identityResults = identity.results;
+          const blocked = await db.researchJob.updateMany({
+            where: { id, currentStage: 0, leaseUntil, status: 'running' },
+            data: {
+              status: 'blocked',
+              error: identity.reason || 'Confirm which provider you mean.',
+              context: context as unknown as Prisma.InputJsonValue,
+              leaseUntil: null,
+            },
+          });
+          return {
+            claimed: true,
+            outcome: blocked.count ? 'blocked' : 'superseded',
+            leaseUntil: null,
+            retryAfterMs: 0,
+          };
+        }
+        context.identity = identity;
+        context.identityOptions = undefined;
+        context.identityResults = undefined;
+        context.chosenCandidateIndex = undefined;
         validateRemoteUrl(context.identity.website);
         context.attempted.push(
           `Selected observed provider identity origin: ${context.identity.website}`,
@@ -232,6 +339,7 @@ export async function advanceJob(id: string): Promise<ExecutionResult> {
         completedStages: [...(job.completedStages as number[]), job.currentStage],
         context: context as unknown as Prisma.InputJsonValue,
         leaseUntil: null,
+        retryCount: 0,
       },
     });
     return {
@@ -242,7 +350,27 @@ export async function advanceJob(id: string): Promise<ExecutionResult> {
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Research failed';
-    console.error('Research stage failed:', sanitizeResearchError(message));
+    const transient = isTransientResearchError(error);
+    const code = error && typeof error === 'object' && 'code' in error ? String(error.code) : 'unknown';
+    console.error('Research stage failed', { jobId: id, stage: job.currentStage, code, transient });
+
+    if (transient && job.retryCount < 2) {
+      const retry = await db.researchJob.updateMany({
+        where: fence,
+        data: {
+          error: sanitizeResearchError(message),
+          retryCount: { increment: 1 },
+          leaseUntil: null,
+          context: context as unknown as Prisma.InputJsonValue,
+        },
+      });
+      return {
+        claimed: true,
+        outcome: retry.count ? 'retry' : 'superseded',
+        leaseUntil: null,
+        retryAfterMs: retry.count ? 1000 * (job.retryCount + 1) : 0,
+      };
+    }
 
     const failed = await db.researchJob.updateMany({
       where: fence,
@@ -262,6 +390,15 @@ export async function advanceJob(id: string): Promise<ExecutionResult> {
       retryAfterMs: 0,
     };
   }
+}
+export function isTransientResearchError(error: unknown) {
+  if (error && typeof error === 'object' && 'code' in error) {
+    if (['P1001', 'P1002', 'P2024', 'P2028', 'P2034'].includes(String(error.code))) return true;
+  }
+  const message = error instanceof Error ? error.message : '';
+  return /HTTP 5\d\d|timed? ?out|timeout|temporarily unavailable|ECONNRESET|socket hang up|fetch failed/i.test(
+    message,
+  );
 }
 export function sanitizeResearchError(message: string) {
   const missing = configurationError();

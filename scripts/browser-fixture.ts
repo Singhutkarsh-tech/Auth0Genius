@@ -42,6 +42,7 @@ async function main() {
   guide.slug = 'e2e-generated-fixture';
   guide.name = 'Generated fixture';
   guide.featured = false;
+  guide.steps[0].detail.status = 'unverified';
   guide.provenance = {
     method: 'live_research',
     attempted: ['Deterministic browser test fixture; no live research claimed.'],

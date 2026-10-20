@@ -1,0 +1,106 @@
+{
+  "checkedAt": "2026-10-20T13:31:52.669Z",
+  "phase": "Fresh contexts after application restart; preserved isolated SQLite database",
+  "jobId": "cmvgppcy10000y6112b459p84",
+  "guideId": "research-cmvgppcy10000y6112b459p84",
+  "generatedAt": "2026-10-20T13:22:31.202Z",
+  "outputUrl": "http://127.0.0.1:3183/providers/figma",
+  "completedStages": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6
+  ],
+  "researchPageNavigatedToSavedGuide": true,
+  "independentSavedUrlOpened": true,
+  "mobileFits": true,
+  "pageErrors": [],
+  "fetchedSources": [
+    {
+      "id": "s1",
+      "url": "https://www.figma.com/",
+      "authority": "provider",
+      "contentHash": "a9305fb174c1098d71ca0b96380354a8803ec869e17f05c550a6463469784686",
+      "characters": 1619
+    },
+    {
+      "id": "s2",
+      "url": "https://developers.figma.com/docs/rest-api/",
+      "authority": "provider",
+      "contentHash": "ca78c72c35219faa61b3f2f1e9d0178248d7484622f5732ed3aaa9c95c44ccd5",
+      "characters": 3332
+    },
+    {
+      "id": "s3",
+      "url": "https://developers.figma.com/docs/rest-api/republish-oauth-apps/",
+      "authority": "provider",
+      "contentHash": "ad8090f8cd9c4ff33b04dbb64ecd5f3225c61636dbde3839b5a493f14cee4215",
+      "characters": 7057
+    },
+    {
+      "id": "s4",
+      "url": "https://forum.figma.com/report-a-problem-6/supabase-figma-oauth-broken-files-read-incorrect-app-scope-45602",
+      "authority": "third_party",
+      "contentHash": "7511132489d83a120c0c84af88734c5c3c87afac595761931cbc6056bda69178",
+      "characters": 2002
+    },
+    {
+      "id": "s5",
+      "url": "https://developers.figma.com/docs/rest-api/oauth-apps/",
+      "authority": "provider",
+      "contentHash": "0361fce079e0f98c2cdd7c3e3e35a19f13a457ed014b0f3959aef002a0d25acf",
+      "characters": 14000
+    },
+    {
+      "id": "s6",
+      "url": "https://developers.figma.com/docs/rest-api/scopes/",
+      "authority": "provider",
+      "contentHash": "2cad74199601f2bbe0e260412ac4d1fe25c5daaa8c5b8e83eeb47fc92cb43426",
+      "characters": 3705
+    },
+    {
+      "id": "c1",
+      "url": "https://docs.composio.dev/toolkits/managed-auth",
+      "authority": "composio",
+      "contentHash": "1a03d6b66b2976b728048ab69a1a8b22dc9b5493e856d9a27a2a51da2abf904b",
+      "characters": 14000
+    },
+    {
+      "id": "c2",
+      "url": "https://docs.composio.dev/docs/authentication/custom-app-vs-managed-app",
+      "authority": "composio",
+      "contentHash": "9483798d6b68945e7391aaf12355c9464211d3bca1168253744f09eac4e4e303",
+      "characters": 12325
+    },
+    {
+      "id": "s7",
+      "url": "https://help.figma.com/hc/en-us/articles/16354660649495-Security-disclosure-principles",
+      "authority": "provider",
+      "contentHash": "820c1ca0841ade006571fb732f89244b73880b2cc5665c0b6617093799dc0d55",
+      "characters": 4788
+    },
+    {
+      "id": "s8",
+      "url": "https://forum.figma.com/ask-the-community-7/understanding-oauth-requirements-for-mcp-clients-connecting-to-figma-mcp-server-52216",
+      "authority": "third_party",
+      "contentHash": "b5ac045dcd66a5d421544255a7908dcb1bd3a0e1b550ff2f20abcd0a7fb0c742",
+      "characters": 2096
+    },
+    {
+      "id": "s9",
+      "url": "https://help.figma.com/hc/en-us/articles/22932461365015-Figma-for-Government",
+      "authority": "provider",
+      "contentHash": "673df770de2da34679284d2282f839694e3f3eec7eb6b7b3b2df64bc64cf0918",
+      "characters": 14000
+    }
+  ],
+  "classifications": {
+    "oauth": "supported",
+    "managed": "unknown",
+    "approval": "unknown"
+  },
+  "semanticAcceptance": "Partial only: see the independent material-claim audit in docs/research-audit.md. No automatic semantic verification is claimed."
+}

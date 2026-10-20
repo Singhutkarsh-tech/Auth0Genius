@@ -1,0 +1,11 @@
+{
+  "input": "https://www.figma.com",
+  "startedAt": "2026-10-20T13:24:34.694Z",
+  "outcome": "reused",
+  "fresh": false,
+  "stages": [],
+  "sourceUrls": [],
+  "attempted": [],
+  "outputUrl": "http://127.0.0.1:3183/providers/figma",
+  "error": "Existing guide found. No fresh research was performed."
+}

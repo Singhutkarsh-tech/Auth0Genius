@@ -5,7 +5,7 @@ import { normalize, matches } from '@/lib/providers';
 import { listGuides } from '@/lib/db/guides';
 import { configurationError } from '@/lib/research/engine';
 import { consumeQuota, errorJson, sameOrigin, validAccessCode } from '@/lib/research/request';
-import { validateRemoteUrl } from '@/lib/research/network';
+import { parseResearchTarget, sameOfficialDomain } from '@/lib/research/identity';
 export const runtime = 'nodejs';
 export async function POST(request: Request) {
   if (!sameOrigin(request)) return errorJson('Cross-origin requests are not accepted.', 403);
@@ -24,21 +24,32 @@ export async function POST(request: Request) {
     if (!parsed.success)
       return errorJson('Enter a provider name or a public HTTPS website URL (2–200 characters).');
     const { query, useCase, accessCode } = parsed.data;
+    let target;
+    try {
+      target = parseResearchTarget(query);
+    } catch {
+      return errorJson(
+        'Use a public HTTPS provider website. Private addresses and unsupported URL formats are not accepted.',
+      );
+    }
     if (!validAccessCode(accessCode))
       return errorJson('A valid research access code is required for this deployment.', 401);
-    if (query.includes('://')) {
-      try {
-        validateRemoteUrl(query);
-      } catch {
-        return errorJson(
-          'Use a public HTTPS provider website. Private addresses and unsupported URL formats are not accepted.',
-        );
-      }
-    }
-    const existing = (await listGuides()).find((g) => matches(g, query, true));
+    const library = await listGuides();
+    const existing = library.find((g) =>
+      target.kind === 'name'
+        ? matches(g, query, true)
+        : (() => {
+            try {
+              return sameOfficialDomain(new URL(g.website).hostname, target.domain);
+            } catch {
+              return false;
+            }
+          })(),
+    );
     if (existing && !useCase)
       return Response.json({ existing: true, url: `/providers/${existing.slug}` });
-    const normalizedProvider = `${normalize(query)}:${createHash('sha256')
+    const normalizedInput = target.kind === 'name' ? query : target.domain;
+    const normalizedProvider = `${normalize(normalizedInput)}:${createHash('sha256')
       .update(useCase ?? '')
       .digest('hex')
       .slice(0, 12)}`;
@@ -46,7 +57,7 @@ export async function POST(request: Request) {
     const duplicate = await db.researchJob.findFirst({
       where: {
         normalizedProvider,
-        status: { in: ['queued', 'running'] },
+        status: { in: ['queued', 'running', 'blocked'] },
         startedAt: { gt: recent },
       },
       orderBy: { startedAt: 'desc' },
@@ -57,7 +68,10 @@ export async function POST(request: Request) {
         url: `/research/${duplicate.id}`,
         duplicate: true,
       });
-    await consumeQuota(request);
+    await consumeQuota(
+      request,
+      !process.env.RESEARCH_ACCESS_CODE || process.env.RESEARCH_PUBLIC_ACCESS === 'true',
+    );
     const config = configurationError();
     await db.researchJob.updateMany({
       where: { dedupKey: normalizedProvider, startedAt: { lte: recent } },
@@ -79,7 +93,12 @@ export async function POST(request: Request) {
         error: config,
         completedAt: config ? new Date() : null,
         completedStages: [],
-        context: { ...(useCase ? { useCase } : {}), sources: [], attempted: [] },
+        context: {
+          ...(useCase ? { useCase } : {}),
+          ...(target.kind !== 'name' ? { identityUrl: target.url } : {}),
+          sources: [],
+          attempted: [],
+        },
       },
     });
     return Response.json({ jobId: job.id, url: `/research/${job.id}` }, { status: 201 });

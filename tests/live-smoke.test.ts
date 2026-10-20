@@ -56,4 +56,31 @@ describe('Fresh live smoke acceptance reporting', () => {
     expect(result.error).toContain('OPENAI_API_KEY');
     expect(result.outputUrl).toBeUndefined();
   });
+  it('stops at an identity confirmation gate instead of polling forever', async () => {
+    const fetcher = vi
+      .fn()
+      .mockResolvedValueOnce(response({ providers: [] }))
+      .mockResolvedValueOnce(response({ jobId: 'new-identity' }))
+      .mockResolvedValueOnce(
+        response({
+          status: 'blocked',
+          currentStage: 0,
+          completedStages: [],
+          sources: [],
+          attempted: ['Fetched the supplied website; two candidates remain.'],
+          error: 'Confirm which provider you mean.',
+          identityCandidates: [{ name: 'Candidate' }],
+        }),
+      );
+    const result = await runLiveResearch({
+      base: 'http://localhost:3182',
+      input: 'ambiguous.example',
+      fetcher,
+      report: vi.fn(),
+    });
+    expect(result.outcome).toBe('blocked');
+    expect(result.fresh).toBe(true);
+    expect(result.error).toContain('Confirm');
+    expect(fetcher).toHaveBeenCalledTimes(3);
+  });
 });

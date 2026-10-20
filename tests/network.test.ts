@@ -18,10 +18,12 @@ function respond(status: number, headers: Record<string, string>, body = '') {
         statusCode: number;
         headers: Record<string, string>;
         resume: ReturnType<typeof vi.fn>;
+        destroy: ReturnType<typeof vi.fn>;
       };
       response.statusCode = status;
       response.headers = headers;
       response.resume = vi.fn();
+      response.destroy = vi.fn();
       callback(response);
       options.lookup('docs.example.com', {}, (error: unknown, address: string) => {
         if (error) throw error;
@@ -73,5 +75,17 @@ describe('Safe retrieval connection behavior', () => {
       expect(error).toBeNull();
       expect(addresses).toEqual([{ address: '8.8.8.8', family: 4 }]);
     });
+  });
+  it('keeps a bounded readable prefix from oversized pages and marks it incomplete', async () => {
+    network.lookup.mockResolvedValueOnce([{ address: '8.8.8.8', family: 4 }]);
+    respond(
+      200,
+      { 'content-type': 'text/html' },
+      `<title>Figma design</title><main>${'Figma is a collaborative design platform. '.repeat(30000)}</main>`,
+    );
+    const page = await fetchDocument('https://www.figma.com');
+    expect(page.truncated).toBe(true);
+    expect(page.title).toBe('Figma design');
+    expect(page.text).toContain('collaborative design platform');
   });
 });

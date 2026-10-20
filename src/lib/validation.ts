@@ -15,10 +15,18 @@ export const evidenceTopic = z.enum([
   'setup',
   'general',
 ]);
+export const authenticationType = z.enum([
+  'oauth2',
+  'oauth1',
+  'oauth_like_proprietary',
+  'api_key',
+  'unsupported',
+  'unverified',
+]);
 export const supportSchema = z.object({
   topic: evidenceTopic,
   conclusion: z.string(),
-  review: z.enum(['reviewed', 'unresolved']),
+  review: z.enum(['reviewed', 'rule_checked', 'unresolved']),
   reviewedText: z.string().nullable(),
   references: z
     .array(z.object({ sourceId: z.string(), passage: z.string().min(1).max(3000) }))
@@ -73,6 +81,13 @@ export const guideSchema = z.object({
   version: z.number().int().positive(),
   status: z.enum(['sourced', 'partial']),
   oauthStatus: z.enum(['supported', 'unsupported', 'unknown']),
+  authenticationType: authenticationType.default('unverified'),
+  authenticationEvidence: claimSchema.default({
+    text: 'The exact authentication mechanism is unverified.',
+    status: 'unverified',
+    sourceIds: [],
+    support: null,
+  }),
   oauthEvidence: claimSchema,
   managedAuth: z.enum(['available', 'unavailable', 'unknown']),
   managedEvidence: claimSchema,
@@ -147,6 +162,8 @@ export function validateEvidence(input: unknown): Guide {
           const source = guide.sources.find((s) => s.id === ref.sourceId);
           if (!source || !claim.sourceIds.includes(ref.sourceId))
             throw new Error('Claim passage has an unknown evidence reference');
+          if (claim.support.review === 'rule_checked' && source.capture !== 'fetched')
+            throw new Error('Rule-checked claims require retained fetched source text');
           if (
             !(
               source.content ?? (source.capture === 'review_summary' ? source.summary : '')
@@ -171,7 +188,7 @@ export function validateEvidence(input: unknown): Guide {
           throw new Error('Verified claims require official evidence');
         if (
           !claim.support ||
-          claim.support.review !== 'reviewed' ||
+          !['reviewed', 'rule_checked'].includes(claim.support.review) ||
           claim.support.reviewedText !== claim.text
         )
           throw new Error('Verified claims require explicit semantic review of this exact claim');
@@ -202,6 +219,19 @@ export function validateEvidence(input: unknown): Guide {
     )
       throw new Error(`Inconsistent ${topic} classification and evidence`);
   }
+  if (guide.authenticationType !== 'unverified') {
+    const claim = guide.authenticationEvidence;
+    const expectedTopic = guide.authenticationType === 'api_key' ? 'general' : 'oauth';
+    if (
+      claim.status !== 'verified' ||
+      claim.support?.topic !== expectedTopic ||
+      claim.support.conclusion !== guide.authenticationType ||
+      !claim.sourceIds.some(
+        (id) => guide.sources.find((s) => s.id === id)?.authority === 'provider',
+      )
+    )
+      throw new Error('Authentication mechanism requires relevant verified provider evidence');
+  }
   for (const exemption of guide.stageExemptions)
     if (exemption.reason.status !== 'not_applicable')
       throw new Error('Stage exemptions require reviewed not-applicable evidence');
@@ -225,7 +255,7 @@ export function downgradeUnreviewed(input: unknown): Guide {
     if (
       ['verified', 'not_applicable'].includes(claim.status) &&
       (!claim.support ||
-        claim.support.review !== 'reviewed' ||
+        !['reviewed', 'rule_checked'].includes(claim.support.review) ||
         claim.support.reviewedText !== claim.text)
     )
       claim.status = 'unverified';
@@ -233,6 +263,13 @@ export function downgradeUnreviewed(input: unknown): Guide {
   if (guide.oauthEvidence.status !== 'verified') {
     guide.oauthStatus = 'unknown';
     guide.oauthEvidence.status = 'unverified';
+  }
+  if (
+    guide.authenticationEvidence.status !== 'verified' ||
+    guide.authenticationEvidence.support?.conclusion !== guide.authenticationType
+  ) {
+    guide.authenticationType = 'unverified';
+    guide.authenticationEvidence.status = 'unverified';
   }
   if (guide.managedEvidence.status !== 'verified') {
     guide.managedAuth = 'unknown';

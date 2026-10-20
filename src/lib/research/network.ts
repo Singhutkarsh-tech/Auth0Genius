@@ -45,11 +45,11 @@ export async function fetchDocument(
   value: string,
   redirects = 0,
   deadline = Date.now() + 20000,
-): Promise<{ url: string; title: string; text: string }> {
+): Promise<{ url: string; title: string; text: string; truncated?: boolean }> {
   if (Date.now() >= deadline) throw new Error('Documentation fetch deadline exceeded');
   if (redirects > 3) throw new Error('Too many documentation redirects');
   const { url, address } = await resolvePublic(value);
-  const result = await new Promise<{ status: number; location?: string; body: string }>(
+  const result = await new Promise<{ status: number; location?: string; body: string; truncated?: boolean }>(
     (resolve, reject) => {
       const request = https.get(
         url,
@@ -85,11 +85,21 @@ export async function fetchDocument(
           let size = 0;
           const chunks: Buffer[] = [];
           res.on('data', (chunk: Buffer) => {
-            size += chunk.length;
-            if (size > 1_000_000) {
-              request.destroy(new Error('Documentation exceeds size limit'));
+            const remaining = 1_000_000 - size;
+            if (chunk.length > remaining) {
+              if (remaining > 0) chunks.push(chunk.subarray(0, remaining));
+              size = 1_000_000;
+              // Keep the bounded prefix; large marketing pages often put identity text first.
+              // Parsing remains conservative and later claims still require retained passages.
+              resolve({
+                status,
+                body: Buffer.concat(chunks).toString('utf8'),
+                truncated: true,
+              });
+              res.destroy();
               return;
             }
+            size += chunk.length;
             chunks.push(chunk);
           });
           res.on('end', () => resolve({ status, body: Buffer.concat(chunks).toString('utf8') }));
@@ -115,5 +125,5 @@ export async function fetchDocument(
     .trim()
     .slice(0, 14000);
   if (text.length < 100) throw new Error('Documentation contains insufficient readable text');
-  return { url: url.toString(), title, text };
+  return { url: url.toString(), title, text, truncated: result.truncated };
 }

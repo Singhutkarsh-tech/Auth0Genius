@@ -101,6 +101,7 @@ describe('Research engine with mocked search and LLM, real SQLite persistence', 
     });
     await advanceJob(job.id);
     expect(mocks.synthesize).toHaveBeenCalledTimes(1);
+    expect(await db.guide.count()).toBe(1);
   });
   it('uses one bounded identity fallback when discovery returns unrelated aggregators', async () => {
     mocks.search.mockResolvedValueOnce([
@@ -133,15 +134,55 @@ describe('Research engine with mocked search and LLM, real SQLite persistence', 
       aliases: base.aliases,
     });
   });
-  it('records retrieval failure without completing the stage or fabricating a guide', async () => {
-    mocks.search.mockRejectedValueOnce(new Error('Search provider unavailable (HTTP 503)'));
+  it('retries transient retrieval failures a bounded number of times before terminal failure', async () => {
+    mocks.search.mockRejectedValue(new Error('Search provider unavailable (HTTP 503)'));
     const job = await newJob();
-    await advanceJob(job.id);
+    expect((await advanceJob(job.id)).outcome).toBe('retry');
+    expect((await advanceJob(job.id)).outcome).toBe('retry');
+    const terminal = await advanceJob(job.id);
+    expect(terminal.outcome).toBe('failed');
     const state = await db.researchJob.findUniqueOrThrow({ where: { id: job.id } });
     expect(state.status).toBe('failed');
     expect(state.currentStage).toBe(0);
     expect(state.completedStages).toEqual([]);
     expect(await db.guide.count()).toBe(0);
+  });
+  it('pauses OAuth research for identity confirmation, then resumes only the selected candidate', async () => {
+    const job = await newJob();
+    const candidateResults = [
+      { title: 'Figma design platform', url: 'https://www.figma.com/', content: 'Collaborative design tools.' },
+      { title: 'Figma Japan', url: 'https://figma.jp/', content: 'A separate local company.' },
+    ];
+    mocks.identify
+      .mockResolvedValueOnce({
+        ambiguous: true,
+        reason: 'Two plausible companies use this name.',
+        candidates: candidateResults.map((r) => ({
+          name: r.title,
+          website: new URL(r.url).origin,
+          description: r.content,
+          evidenceUrl: r.url,
+          evidenceSummary: r.content,
+        })),
+        results: candidateResults,
+      })
+      .mockResolvedValueOnce({ name: 'Figma', website: 'https://www.figma.com', ambiguous: false });
+
+    expect((await advanceJob(job.id)).outcome).toBe('blocked');
+    let state = await db.researchJob.findUniqueOrThrow({ where: { id: job.id } });
+    expect(state.status).toBe('blocked');
+    expect(state.currentStage).toBe(0);
+    expect(mocks.search).toHaveBeenCalledTimes(1);
+    expect((await advanceJob(job.id)).outcome).toBe('blocked');
+    expect(mocks.search).toHaveBeenCalledTimes(1);
+
+    expect((await advanceJob(job.id, { candidateIndex: 0 })).outcome).toBe('advanced');
+    state = await db.researchJob.findUniqueOrThrow({ where: { id: job.id } });
+    expect(state.currentStage).toBe(1);
+    expect((state.context as { identity: { website: string } }).identity.website).toBe(
+      'https://www.figma.com',
+    );
+    expect(mocks.identify).toHaveBeenCalledTimes(2);
   });
   it('rejects schema-invalid synthesis before saving', async () => {
     mocks.synthesize.mockResolvedValueOnce({ ...guide, difficulty: 'Unbelievably easy' });
@@ -211,27 +252,22 @@ describe('Research engine with mocked search and LLM, real SQLite persistence', 
     expect(saved.currentStage).toBe(1);
     expect(saved.completedStages).toEqual([0]);
   });
-  it('rolls back publication if completion is interrupted and retries idempotently', async () => {
+  it('rolls back the guide and evidence if publication completion fails', async () => {
     const job = await newJob();
     for (let i = 0; i < 6; i++) await advanceJob(job.id);
     await db.$executeRawUnsafe(
       "CREATE TRIGGER interrupt_publication BEFORE UPDATE ON ResearchJob WHEN NEW.status = 'completed' BEGIN SELECT RAISE(ABORT, 'simulated completion interruption'); END;",
     );
     try {
-      expect((await advanceJob(job.id)).outcome).toBe('retry');
+      expect((await advanceJob(job.id)).outcome).toBe('failed');
       expect(await db.guide.count()).toBe(0);
-      expect((await db.researchJob.findUniqueOrThrow({ where: { id: job.id } })).status).toBe(
-        'running',
-      );
+      expect(await db.evidenceSource.count()).toBe(0);
+      expect((await db.researchJob.findUniqueOrThrow({ where: { id: job.id } })).status).toBe('failed');
     } finally {
       await db.$executeRawUnsafe('DROP TRIGGER interrupt_publication');
     }
-    await advanceJob(job.id);
-    const done = await db.researchJob.findUniqueOrThrow({ where: { id: job.id } });
-    expect(done.status).toBe('completed');
-    expect(done.outputGuideId).toBe(`research-${job.id}`);
-    await advanceJob(job.id);
-    expect(await db.guide.count()).toBe(1);
+    expect((await advanceJob(job.id)).outcome).toBe('terminal');
+    expect(await db.guide.count()).toBe(0);
   });
   it('reuses an active normalized provider request', async () => {
     const req = () =>
@@ -248,17 +284,38 @@ describe('Research engine with mocked search and LLM, real SQLite persistence', 
     expect(await db.researchJob.count()).toBe(1);
   });
   it('enforces a persistent per-caller quota', async () => {
+    process.env.RESEARCH_ACCESS_CODE = 'test-access-code';
     let status = 200;
     for (let i = 0; i < 6; i++) {
       const result = await createResearch(
         new Request('http://localhost:3000/api/research', {
           method: 'POST',
-          body: JSON.stringify({ query: `Unfamiliar quota fixture ${i}` }),
+          body: JSON.stringify({ query: `Unfamiliar quota fixture ${i}`, accessCode: 'test-access-code' }),
         }),
       );
       status = result.status;
     }
     expect(status).toBe(429);
     expect(await db.researchJob.count()).toBe(5);
+    delete process.env.RESEARCH_ACCESS_CODE;
+  });
+  it('allows passwordless evaluator access only with strict persistent public quotas', async () => {
+    process.env.RESEARCH_ACCESS_CODE = 'test-access-code';
+    process.env.RESEARCH_PUBLIC_ACCESS = 'true';
+    try {
+      const submit = (query: string) =>
+        createResearch(
+          new Request('http://localhost:3000/api/research', {
+            method: 'POST',
+            body: JSON.stringify({ query }),
+          }),
+        );
+      expect((await submit('Public evaluator app one')).status).toBe(201);
+      expect((await submit('Public evaluator app two')).status).toBe(201);
+      expect((await submit('Public evaluator app three')).status).toBe(429);
+    } finally {
+      delete process.env.RESEARCH_ACCESS_CODE;
+      delete process.env.RESEARCH_PUBLIC_ACCESS;
+    }
   });
 });

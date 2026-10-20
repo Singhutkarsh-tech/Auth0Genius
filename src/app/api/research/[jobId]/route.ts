@@ -13,6 +13,7 @@ async function publicJob(id: string) {
   return {
     id: job.id,
     query: job.query,
+    identity: context.identity ?? null,
     status: job.status,
     currentStage: job.currentStage,
     completedStages: job.completedStages,
@@ -20,6 +21,14 @@ async function publicJob(id: string) {
     outputUrl: job.outputSlug ? `/providers/${job.outputSlug}` : null,
     attempted: context.attempted,
     sources: context.sources.map((s) => ({ id: s.id, title: s.title, url: s.url, type: s.type })),
+    identityCandidates: context.identityOptions?.map((candidate, index) => ({
+      index,
+      name: candidate.name,
+      website: candidate.website,
+      description: candidate.description,
+      evidenceUrl: candidate.evidenceUrl,
+      evidenceSummary: candidate.evidenceSummary,
+    })) ?? [],
     startedAt: job.startedAt,
     completedAt: job.completedAt,
     outputGuideId: job.outputGuideId,
@@ -45,7 +54,27 @@ export async function POST(request: Request, { params }: Params) {
   try {
     const job = await publicJob(jobId);
     if (!job) return errorJson('Research job not found.', 404);
-    const executionResult = await advanceJob(jobId);
+    let selection: { candidateIndex?: number; officialUrl?: string } | undefined;
+    const body = await request.text();
+    if (body.length > 2048) return errorJson('Identity confirmation is too large.', 413);
+    if (body) {
+      try {
+        const value = JSON.parse(body) as { candidateIndex?: unknown; officialUrl?: unknown };
+        if (value.candidateIndex !== undefined) {
+          if (!Number.isInteger(value.candidateIndex) || Number(value.candidateIndex) < 0)
+            return errorJson('Choose one of the listed provider candidates.');
+          selection = { candidateIndex: Number(value.candidateIndex) };
+        } else if (typeof value.officialUrl === 'string') {
+          const parsed = new URL(value.officialUrl);
+          if (parsed.protocol !== 'https:' || parsed.username || parsed.password)
+            return errorJson('Enter a public HTTPS provider website.');
+          selection = { officialUrl: parsed.toString() };
+        } else return errorJson('Choose a provider candidate or enter its official website.');
+      } catch {
+        return errorJson('Enter a valid provider candidate selection.');
+      }
+    }
+    const executionResult = await advanceJob(jobId, selection);
     return Response.json(
       { ...(await publicJob(jobId)), executionResult },
       { headers: { 'Cache-Control': 'no-store' } },

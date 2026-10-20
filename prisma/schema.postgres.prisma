@@ -55,6 +55,7 @@ model ResearchJob {
   dedupKey String? @unique
   status String @default("queued")
   currentStage Int @default(0)
+  retryCount Int @default(0)
   completedStages Json
   context Json
   error String?

@@ -33,6 +33,9 @@ export function ResearchWorkspace({
   const [error, setError] = useState('');
   const [job, setJob] = useState<Job | null>(null);
   const [running, setRunning] = useState(false);
+  const [resumeNonce, setResumeNonce] = useState(0);
+  const [officialUrl, setOfficialUrl] = useState('');
+  const [selectingIdentity, setSelectingIdentity] = useState(false);
 
   // Restore the optional deployment access code after hydration.
   /* eslint-disable react-hooks/set-state-in-effect -- Session storage is restored once after server rendering. */
@@ -53,7 +56,7 @@ export function ResearchWorkspace({
       onError: setError,
       onRunning: setRunning,
     });
-  }, [jobId, accessCode, protectedResearch]);
+  }, [jobId, accessCode, protectedResearch, resumeNonce]);
   useEffect(() => {
     if (job?.status === 'completed' && job.outputUrl) {
       const timer = setTimeout(() => router.push(job.outputUrl!), 1800);
@@ -80,6 +83,28 @@ export function ResearchWorkspace({
       setError(e instanceof Error ? e.message : 'Research failed');
     } finally {
       setBusy(false);
+    }
+  }
+  async function confirmIdentity(selection: { candidateIndex?: number; officialUrl?: string }) {
+    setSelectingIdentity(true);
+    setError('');
+    try {
+      const response = await fetch(`/api/research/${jobId}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-research-access-code': accessCode,
+        },
+        body: JSON.stringify(selection),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error?.message ?? 'Could not confirm provider identity');
+      setJob(data);
+      setResumeNonce((n) => n + 1);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not confirm provider identity');
+    } finally {
+      setSelectingIdentity(false);
     }
   }
   return (
@@ -165,19 +190,68 @@ export function ResearchWorkspace({
             <>
               <div className="job-heading">
                 <div>
-                  <strong>{job.query}</strong>
+                  <strong>{job.identity?.name ?? job.query}</strong>
                   <span style={{ display: 'block' }}>
-                    Bounded research · official sources first
+                    {job.identity?.website ? `${job.identity.website} · ` : ''}Bounded research · official sources first
                   </span>
                 </div>
-                <Badge tone={job.status === 'failed' ? 'amber' : 'purple'}>
+                <Badge tone={job.status === 'failed' || job.status === 'blocked' ? 'amber' : 'purple'}>
                   {job.status === 'running' ? 'Researching' : job.status}
                 </Badge>
               </div>
+              {job.status === 'blocked' && (
+                <section className="identity-choice" aria-labelledby="identity-choice-title">
+                  <div className="eyebrow">PROVIDER IDENTITY CHECK</div>
+                  <h2 id="identity-choice-title">{job.identityCandidates.length ? 'Which provider do you mean?' : 'Confirm the official website'}</h2>
+                  <p>{job.error || 'Research is paused until the intended provider is clear. OAuth research has not started.'}</p>
+                  {job.identityCandidates.map((candidate) => (
+                    <article className="identity-candidate" key={`${candidate.index}-${candidate.website}`}>
+                      <div>
+                        <strong>{candidate.name}</strong>
+                        <span className="identity-domain">{candidate.website}</span>
+                        <p>{candidate.description || candidate.evidenceSummary}</p>
+                        <a href={candidate.evidenceUrl} target="_blank" rel="noreferrer">
+                          Inspect identity evidence <ArrowRight size={13} />
+                        </a>
+                      </div>
+                      <button
+                        type="button"
+                        className="button primary"
+                        disabled={selectingIdentity}
+                        onClick={() => void confirmIdentity({ candidateIndex: candidate.index })}
+                      >
+                        Select provider
+                      </button>
+                    </article>
+                  ))}
+                  <form
+                    className="identity-url-form"
+                    onSubmit={(event) => {
+                      event.preventDefault();
+                      void confirmIdentity({ officialUrl });
+                    }}
+                  >
+                    <label htmlFor="identity-official-url">
+                      {job.identityCandidates.length ? 'Or enter another official website' : 'Official website'}
+                    </label>
+                    <div>
+                      <input
+                        id="identity-official-url"
+                        type="url"
+                        required
+                        value={officialUrl}
+                        onChange={(event) => setOfficialUrl(event.target.value)}
+                        placeholder="https://example.com"
+                      />
+                      <button className="button secondary" disabled={selectingIdentity}>Check website</button>
+                    </div>
+                  </form>
+                </section>
+              )}
               <div aria-live="polite">
                 {researchStages.map((stage, i) => {
                   const done = job.completedStages.includes(i);
-                  const current = job.currentStage === i && job.status !== 'failed';
+                  const current = job.currentStage === i && !['failed', 'blocked'].includes(job.status);
                   return (
                     <div
                       key={stage}
@@ -215,6 +289,12 @@ export function ResearchWorkspace({
                     Start a new investigation
                     <ArrowRight size={14} />
                   </Link>
+                </div>
+              )}
+              {job.status === 'running' && job.error && (
+                <div className="research-retry-note" role="status">
+                  <strong>Retrying a temporary failure</strong>
+                  <p>{job.error} Completed research evidence is being retained.</p>
                 </div>
               )}
               {job.status === 'completed' && job.outputUrl && (

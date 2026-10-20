@@ -1,11 +1,12 @@
 import type { Guide } from './validation';
 import { applicableSteps, type AuthRoute } from './workspace';
+import { normalizeProviderDomain } from './research/domain';
 export function normalize(input: string): string {
   const value = input.trim().toLowerCase();
   if (/^https?:\/\//.test(value) || /^[\w.-]+\.[a-z]{2,}(?:\/.*)?$/.test(value)) {
     try {
       const u = new URL(value.includes('://') ? value : `https://${value}`);
-      return u.hostname.replace(/^www\./, '');
+      return normalizeProviderDomain(u.hostname);
     } catch {
       return value;
     }
@@ -33,7 +34,9 @@ export function nextAction(guide: Guide, completed: string[], route: AuthRoute =
     return { title: 'Check managed authentication availability', href: '#auth-route' };
   const step = applicableSteps(guide, route).find((s) => !completed.includes(s.id));
   return step
-    ? { title: step.title, href: `#step-${step.id}` }
+    ? step.detail.status === 'verified'
+      ? { title: step.title, href: `#step-${step.id}` }
+      : { title: 'Review this step’s source evidence before proceeding', href: '#evidence' }
     : { title: 'Review your production readiness', href: '#approval' };
 }
 export function launchState(

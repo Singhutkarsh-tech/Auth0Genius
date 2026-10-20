@@ -82,10 +82,13 @@ Set these for **Production** before deployment:
 | `TAVILY_API_KEY`         | Your configured Tavily key, server-side.                        |
 | `NEXT_PUBLIC_APP_URL`    | Your actual production HTTPS origin, without a trailing slash.  |
 | `RESEARCH_ACCESS_CODE`   | A shared code for public-demo research access and cost control. |
+| `RESEARCH_PUBLIC_ACCESS` | Optional `true` for a passwordless evaluator demo. Applies strict persistent caps of 10 research starts/day globally and 2/IP/day. |
 | `NEXT_PUBLIC_GITHUB_URL` | Optional: `https://github.com/Singhutkarsh-tech/Auth0Genius`.   |
 | `OPENAI_MODEL`           | Optional; leave unset to use the app's default.                 |
 
 Keep the database URL and research keys server-only; do not prefix them with `NEXT_PUBLIC_`. This application does not need `NEXT_PUBLIC_SUPABASE_URL`, an anon key, or a Supabase service-role key.
+
+For a public take-home demo, set `RESEARCH_PUBLIC_ACCESS=true` so evaluators do not need a private code. The database quota limits public starts to 10/day across the project and 2/day per IP. Leave it `false` for a private demo and require `RESEARCH_ACCESS_CODE`. The global cap is the hard paid-research ceiling; disable public access after evaluation.
 
 If the production origin is assigned by the first deployment, set `NEXT_PUBLIC_APP_URL` to that exact origin afterward and redeploy. Environment changes apply through a new deployment. Use a separate database for Preview deployments, or leave production credentials scoped only to Production.
 

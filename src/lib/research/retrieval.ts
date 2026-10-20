@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { createHash } from 'node:crypto';
 import { fetchDocument, validateRemoteUrl } from './network';
 import type { Source } from '../validation';
+import { normalizeProviderDomain } from './identity';
 const searchSchema = z.object({
   results: z.array(z.object({ title: z.string(), url: z.string(), content: z.string() })).max(10),
 });
@@ -64,16 +65,21 @@ export function identityCandidates(results: SearchResult[], query: string) {
   ];
   return results.filter((result) => {
     const host = new URL(result.url).hostname.replace(/^www\./, '');
+    const excluded = aggregators.some((domain) => host === domain || host.endsWith(`.${domain}`));
+    if (excluded) return false;
+    if (inputHost) return normalizeProviderDomain(host) === normalizeProviderDomain(inputHost);
+    const evidence = `${result.title} ${result.content}`.toLowerCase();
+    const hostTokens = host.split('.').slice(0, -1);
     return (
-      (inputHost
-        ? host === inputHost || host.endsWith(`.${inputHost}`)
-        : host
-            .split('.')
-            .slice(0, -1)
-            .some((segment) => tokens.includes(segment) || segment === name)) &&
-      !aggregators.some((domain) => host === domain || host.endsWith(`.${domain}`)) &&
-      (!['github.com', 'composio.dev'].includes(host) || name.includes(host.split('.')[0]))
+      hostTokens.some((segment) => tokens.includes(segment) || segment === name) ||
+      tokens.some((token) => evidence.includes(token)) ||
+      evidence.includes(name)
     );
+  }).filter((result, index, all) => {
+    // Keep one discovery result per host. Distinct domains with the same brand
+    // remain separate candidates so identity conflicts are visible to a person.
+    const host = new URL(result.url).hostname.replace(/^www\./, '');
+    return all.findIndex((item) => new URL(item.url).hostname.replace(/^www\./, '') === host) === index;
   });
 }
 export function providerDomain(homepage: string) {
@@ -147,7 +153,7 @@ export async function retrieve(
       domain,
       type: official ? 'official' : 'third_party',
       accessedAt: new Date().toISOString(),
-      summary: `Fetched passage (not a search snippet): ${doc.text.slice(0, 700)}`,
+      summary: `${doc.truncated ? 'Fetched bounded prefix (page truncated; not complete): ' : 'Fetched passage (not a search snippet): '}${doc.text.slice(0, 700)}`,
       authority:
         domain === 'docs.composio.dev' ? 'composio' : official ? 'provider' : 'third_party',
       topics: sourceTopics(doc.text),

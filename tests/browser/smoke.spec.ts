@@ -74,6 +74,53 @@ test('unmatched provider opens explicit research flow', async ({ page }) => {
   await expect(page).toHaveURL(/\/research\/new\?q=Airtable/);
   await expect(page.getByLabel('Provider name or official website')).toHaveValue('Airtable');
 });
+test('a direct Figma URL stays the research identity and shows its resolved domain', async ({
+  page,
+}) => {
+  const jobId = 'directfigmaidentityjob123';
+  let submitted: { query?: string } = {};
+  await page.route('**/api/research', async (route) => {
+    submitted = JSON.parse(route.request().postData() ?? '{}') as { query?: string };
+    await route.fulfill({
+      status: 201,
+      json: { jobId, url: `/research/${jobId}` },
+    });
+  });
+  await page.route(`**/api/research/${jobId}`, (route) =>
+    route.fulfill({
+      json: {
+        id: jobId,
+        query: 'https://www.figma.com',
+        identity: { name: 'Figma design platform', website: 'https://figma.com' },
+        status: 'running',
+        currentStage: 1,
+        completedStages: [0],
+        error: null,
+        outputUrl: null,
+        attempted: ['Fetched supplied Figma domain and confirmed its design-platform identity.'],
+        sources: [],
+        identityCandidates: [],
+        execution: {
+          claimable: false,
+          blocked: false,
+          leaseUntil: new Date(Date.now() + 60000).toISOString(),
+          retryAfterMs: 60000,
+          terminal: false,
+        },
+      },
+    }),
+  );
+  await page.goto('/research/new?q=https%3A%2F%2Fwww.figma.com');
+  await expect(page.getByLabel('Provider name or official website')).toHaveValue(
+    'https://www.figma.com',
+  );
+  await page.getByRole('button', { name: 'Research with AI', exact: true }).click();
+  await expect(page).toHaveURL(`/research/${jobId}`);
+  expect(submitted.query).toBe('https://www.figma.com');
+  await expect(page.locator('.job-heading')).toContainText('Figma design platform');
+  await expect(page.locator('.job-heading')).toContainText('https://figma.com');
+  await expect(page.locator('.job-heading')).not.toContainText('figma.jp');
+});
 test('research errors are honest and no stage is falsely completed', async ({ page }) => {
   await page.route('**/api/research', (route) =>
     route.fulfill({
@@ -101,6 +148,70 @@ test('research errors are honest and no stage is falsely completed', async ({ pa
   await page.getByRole('button', { name: 'Research with AI', exact: true }).click();
   await expect(page.locator('.research-error[role=alert]')).toContainText('OPENAI_API_KEY');
   await expect(page.locator('.research-stage.done')).toHaveCount(0);
+});
+test('ambiguous provider research pauses and submits the developer’s identity choice', async ({ page }) => {
+  const jobId = 'ambiguousidentityjob123';
+  const candidates = [
+    {
+      index: 0,
+      name: 'Figma design platform',
+      website: 'https://www.figma.com',
+      description: 'Collaborative product design and prototyping.',
+      evidenceUrl: 'https://www.figma.com/about/',
+      evidenceSummary: 'Fetched identity page summary.',
+    },
+    {
+      index: 1,
+      name: 'Figma Japan',
+      website: 'https://figma.jp',
+      description: 'A separate country-domain business.',
+      evidenceUrl: 'https://figma.jp/about/',
+      evidenceSummary: 'Fetched identity page summary.',
+    },
+  ];
+  let selected: number | undefined;
+  await page.route(`**/api/research/${jobId}`, async (route) => {
+    if (route.request().method() === 'POST') {
+      selected = (JSON.parse(route.request().postData() ?? '{}') as { candidateIndex: number })
+        .candidateIndex;
+    }
+    await route.fulfill({
+      json: {
+        id: jobId,
+        query: 'Figma',
+        identity:
+          selected === undefined
+            ? null
+            : { name: 'Figma design platform', website: 'https://figma.com' },
+        status: selected === undefined ? 'blocked' : 'running',
+        currentStage: selected === undefined ? 0 : 1,
+        completedStages: selected === undefined ? [] : [0],
+        error: selected === undefined ? 'Two credible identities were found.' : null,
+        outputUrl: null,
+        attempted: ['Fetched identity evidence; OAuth research has not started.'],
+        sources: [],
+        identityCandidates: candidates,
+        execution: {
+          claimable: selected === undefined,
+          blocked: selected === undefined,
+          leaseUntil: selected === undefined ? null : new Date(Date.now() + 60000).toISOString(),
+          retryAfterMs: selected === undefined ? 0 : 60000,
+          terminal: false,
+        },
+      },
+    });
+  });
+  await page.goto(`/research/${jobId}`);
+  await expect(page.getByRole('heading', { name: 'Which provider do you mean?' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Inspect identity evidence' }).first()).toHaveAttribute(
+    'href',
+    'https://www.figma.com/about/',
+  );
+  await page.getByRole('button', { name: 'Select provider' }).first().click();
+  await expect.poll(() => selected).toBe(0);
+  await expect(page.locator('.job-heading')).toContainText('Figma design platform');
+  await expect(page.locator('.job-heading')).toContainText('https://figma.com');
+  await expect(page.getByRole('heading', { name: 'Which provider do you mean?' })).toHaveCount(0);
 });
 test('mobile navigation, guide and layout fit the viewport', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
@@ -130,6 +241,9 @@ test('a persisted generated fixture opens independently by URL', async ({ page }
     await page.goto('/providers/e2e-generated-fixture');
     await expect(page.getByRole('heading', { name: 'Generated fixture', level: 1 })).toBeVisible();
     await expect(page.locator('.guide-content')).toContainText('Evidence, not just answers.');
+    await expect(page.locator('.next-action')).toContainText(
+      'Review this step’s source evidence before proceeding',
+    );
     await page.reload();
     await expect(page.getByRole('heading', { name: 'Generated fixture', level: 1 })).toBeVisible();
   } finally {
@@ -161,7 +275,7 @@ for (const [slug, count] of [
     await expect(page.getByRole('checkbox')).toHaveCount(5);
     await page.getByRole('checkbox').first().check();
     await expect(page.locator('.next-action')).toContainText(
-      'Set up a managed end-user connection',
+      'Review this step’s source evidence before proceeding',
     );
     await expect(page.locator('.next-action')).not.toContainText('Cloud project');
     await custom.click();

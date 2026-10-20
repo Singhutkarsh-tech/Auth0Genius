@@ -3,7 +3,7 @@ import { validateEvidence, type Guide } from '../validation';
 export type SmokeReport = {
   input: string;
   startedAt: string;
-  outcome: 'running' | 'reused' | 'failed' | 'generated_pending_semantic_review';
+  outcome: 'running' | 'reused' | 'blocked' | 'failed' | 'generated_pending_semantic_review';
   fresh: boolean;
   jobId?: string;
   outputUrl?: string;
@@ -80,6 +80,13 @@ export async function runLiveResearch(options: {
       report.sourceUrls = state.sources.map((s: { url: string }) => s.url);
       report.attempted = state.attempted;
       if (state.status === 'failed') throw new Error(state.error ?? 'Research failed');
+      if (state.status === 'blocked') {
+        report.outcome = 'blocked';
+        report.error = state.error ?? 'Provider identity needs human confirmation.';
+        report.outputUrl = new URL(`/research/${created.jobId}`, options.base).href;
+        options.report(report);
+        return report;
+      }
       if (state.status === 'completed') {
         if (state.currentStage !== 7 || state.completedStages.join(',') !== '0,1,2,3,4,5,6')
           throw new Error('Research did not complete every backend stage');

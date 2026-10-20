@@ -13,14 +13,14 @@ describe('Managed and custom workspace applicability', () => {
         /Create a Google Cloud|Register an OAuth|Create a Slack app/,
       );
       expect(custom.some((s) => s.stage === 'Register')).toBe(true);
-      expect(nextAction(g, [managed[0].id], 'managed').href).toBe(`#step-${managed[1].id}`);
+      expect(nextAction(g, [managed[0].id], 'managed').href).toBe('#evidence');
       expect(
         nextAction(
           g,
           custom.map((s) => s.id),
           'managed',
         ).href,
-      ).toBe(`#step-${managed[0].id}`);
+      ).toBe('#evidence');
       expect(launchState(g, 'Register', [], [], 'managed')).toBe('Not applicable');
       expect(launchState(g, 'Configure', [managed[0].id], [], 'managed')).toBe('In progress');
       expect(routeReadiness(g, 'managed').setupEffort.text).toContain('10–20');

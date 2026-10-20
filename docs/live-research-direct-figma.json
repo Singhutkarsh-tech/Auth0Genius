@@ -1,0 +1,150 @@
+{
+  "input": "https://www.figma.com",
+  "startedAt": "2026-10-20T13:21:34.884Z",
+  "outcome": "generated_pending_semantic_review",
+  "fresh": true,
+  "stages": [
+    {
+      "status": "queued",
+      "stage": 0,
+      "completedStages": []
+    },
+    {
+      "status": "running",
+      "stage": 1,
+      "completedStages": [
+        0
+      ]
+    },
+    {
+      "status": "running",
+      "stage": 2,
+      "completedStages": [
+        0,
+        1
+      ]
+    },
+    {
+      "status": "running",
+      "stage": 3,
+      "completedStages": [
+        0,
+        1,
+        2
+      ]
+    },
+    {
+      "status": "running",
+      "stage": 4,
+      "completedStages": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "status": "running",
+      "stage": 5,
+      "completedStages": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ]
+    },
+    {
+      "status": "running",
+      "stage": 6,
+      "completedStages": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ]
+    },
+    {
+      "status": "completed",
+      "stage": 7,
+      "completedStages": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ]
+    }
+  ],
+  "sourceUrls": [
+    "https://www.figma.com/",
+    "https://developers.figma.com/docs/rest-api/",
+    "https://developers.figma.com/docs/rest-api/republish-oauth-apps/",
+    "https://forum.figma.com/report-a-problem-6/supabase-figma-oauth-broken-files-read-incorrect-app-scope-45602",
+    "https://developers.figma.com/docs/rest-api/oauth-apps/",
+    "https://developers.figma.com/docs/rest-api/scopes/",
+    "https://docs.composio.dev/toolkits/managed-auth",
+    "https://docs.composio.dev/docs/authentication/custom-app-vs-managed-app",
+    "https://help.figma.com/hc/en-us/articles/16354660649495-Security-disclosure-principles",
+    "https://forum.figma.com/ask-the-community-7/understanding-oauth-requirements-for-mcp-clients-connecting-to-figma-mcp-server-52216",
+    "https://help.figma.com/hc/en-us/articles/22932461365015-Figma-for-Government"
+  ],
+  "attempted": [
+    "Retrieved https://www.figma.com/ (1619 readable characters)",
+    "Searched for provider identity and official developer documentation",
+    "Discovery URLs (not verified evidence): https://www.figma.com/, https://developers.figma.com/docs/rest-api",
+    "Selected observed provider identity origin: https://figma.com",
+    "Retrieved https://www.figma.com/ (1619 readable characters)",
+    "Retrieved https://developers.figma.com/docs/rest-api/ (3332 readable characters)",
+    "Searched for OAuth capability evidence",
+    "Retrieved https://developers.figma.com/docs/rest-api/republish-oauth-apps/ (7057 readable characters)",
+    "Retrieved https://forum.figma.com/report-a-problem-6/supabase-figma-oauth-broken-files-read-incorrect-app-scope-45602 (2002 readable characters)",
+    "Searched for registration, scopes and redirect documentation",
+    "Retrieved https://developers.figma.com/docs/rest-api/oauth-apps/ (14000 readable characters)",
+    "Retrieved https://developers.figma.com/docs/rest-api/scopes/ (3705 readable characters)",
+    "Checked Composio documentation for managed versus custom authentication",
+    "Retrieved https://docs.composio.dev/toolkits/managed-auth (14000 readable characters)",
+    "Retrieved https://docs.composio.dev/docs/authentication/custom-app-vs-managed-app (12325 readable characters)",
+    "Searched official-domain review and distribution requirements",
+    "Retrieved https://help.figma.com/hc/en-us/articles/16354660649495-Security-disclosure-principles (4788 readable characters)",
+    "Retrieved https://forum.figma.com/ask-the-community-7/understanding-oauth-requirements-for-mcp-clients-connecting-to-figma-mcp-server-52216 (2096 readable characters)",
+    "Retrieved https://help.figma.com/hc/en-us/articles/22932461365015-Figma-for-Government (14000 readable characters)",
+    "Compared retrieved evidence and synthesized a structured guide using OpenAI",
+    "Validated guide schema, source references and retrieved destination URLs"
+  ],
+  "jobId": "cmvgppcy10000y6112b459p84",
+  "model": "gpt-4.1-mini",
+  "outputUrl": "http://127.0.0.1:3183/providers/figma",
+  "claims": [
+    {
+      "topic": "oauth",
+      "classification": "supported",
+      "text": "Provider documentation explicitly identifies OAuth 2.0.",
+      "status": "verified",
+      "passages": [
+        {
+          "sourceId": "s2",
+          "passage": "OAuth2"
+        }
+      ]
+    },
+    {
+      "topic": "managed_auth",
+      "classification": "unknown",
+      "text": "Managed availability remains unverified. Unreviewed interpretation: Figma is listed as a toolkit with Composio-managed OAuth available, meaning Composio provides OAuth app registration and management for Figma, allowing developers to use managed OAuth without registering their own app client ID and secret.",
+      "status": "unverified",
+      "passages": []
+    },
+    {
+      "topic": "approval",
+      "classification": "unknown",
+      "text": "Approval requirements remain unverified. Unreviewed interpretation: Figma requires public apps to submit testing instructions, descriptions, and scope justification for review before approval. Private apps publish immediately without requiring review.",
+      "status": "unverified",
+      "passages": []
+    }
+  ]
+}

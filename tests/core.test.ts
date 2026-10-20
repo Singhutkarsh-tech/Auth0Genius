@@ -12,6 +12,7 @@ import { guideSchema, validateEvidence } from '@/lib/validation';
 import { assertStageAdvance, canTransition } from '@/lib/research/state';
 import { isPublicIp, validateRemoteUrl } from '@/lib/research/network';
 import { reconcileGuide } from '@/lib/research/synthesis';
+import { liveGuide } from './helpers/live-guide';
 const gmail = seedGuides[0];
 describe('Provider discovery', () => {
   it.each([
@@ -44,7 +45,7 @@ describe('Guide and evidence validation', () => {
   it('rejects missing essential fields', () =>
     expect(guideSchema.safeParse({ ...gmail, steps: [] }).success).toBe(false));
   it('rejects dangling citations', () => {
-    const g = structuredClone(gmail);
+    const g = liveGuide();
     g.mainBlocker.sourceIds = ['invented'];
     expect(() => validateEvidence(g)).toThrow('Unknown evidence');
   });
@@ -69,23 +70,33 @@ describe('Guide and evidence validation', () => {
     g.sources.forEach((s) => (s.type = 'third_party'));
     expect(() => validateEvidence(g)).toThrow('official evidence');
   });
-  it('rejects invented step destinations', () => {
-    const g = structuredClone(gmail);
+  it('removes invented step destinations and records the unresolved destination', () => {
+    const g = liveGuide();
     g.steps[0].url = 'https://invented.example/';
-    expect(() =>
-      reconcileGuide(
-        g,
-        g.sources.map((s) => ({ ...s, text: s.summary })),
-      ),
-    ).toThrow('not retrieved');
+    const result = reconcileGuide(
+      g,
+      g.sources.map((s) => ({ ...s, text: s.summary })),
+    );
+    expect(result.steps[0].url).toBeNull();
+    expect(result.unknowns.join(' ')).toContain('No retrieved official destination');
   });
 });
 describe('Launch decisions', () => {
-  it('recommends checking managed auth when that route is selected', () =>
-    expect(nextAction(gmail, [], 'managed').href).toBe(`#step-${gmail.slug}-managed-1`));
+  it('requires evidence review before an unverified managed step', () =>
+    expect(nextAction(gmail, [], 'managed').href).toBe('#evidence'));
   it('recommends the first incomplete step', () => {
     const completed = [gmail.steps[0].id];
-    expect(nextAction(gmail, completed).href).toBe(`#step-${gmail.steps[1].id}`);
+    expect(nextAction(gmail, completed).href).toBe('#evidence');
+  });
+  it('sends unverified setup instructions to evidence before recommending them', () => {
+    const guide = structuredClone(gmail);
+    guide.steps[0].detail.status = 'unverified';
+    expect(nextAction(guide, []).href).toBe('#evidence');
+  });
+  it('recommends a setup step only when its claim is verified', () => {
+    const guide = structuredClone(gmail);
+    guide.steps[0].detail.status = 'verified';
+    expect(nextAction(guide, []).href).toBe(`#step-${guide.steps[0].id}`);
   });
   it('asks for production review after the checklist is reported complete', () =>
     expect(

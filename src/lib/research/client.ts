@@ -2,15 +2,25 @@ import type { ExecutionResult } from './engine';
 export type PublicJob = {
   id: string;
   query: string;
-  status: 'queued' | 'running' | 'completed' | 'failed';
+  identity?: { name: string; website: string } | null;
+  status: 'queued' | 'running' | 'blocked' | 'completed' | 'failed';
   currentStage: number;
   completedStages: number[];
   error: string | null;
   outputUrl: string | null;
   attempted: string[];
   sources: { id: string; title: string; url: string; type: string }[];
+  identityCandidates: {
+    index: number;
+    name: string;
+    website: string;
+    description: string;
+    evidenceUrl: string;
+    evidenceSummary: string;
+  }[];
   execution?: {
     claimable: boolean;
+    blocked: boolean;
     leaseUntil: string | null;
     retryAfterMs: number;
     terminal: boolean;
@@ -62,7 +72,7 @@ export function startResearchLoop(options: {
       let job = await request('GET');
       if (cancelled) return;
       options.onJob(job);
-      if (['completed', 'failed'].includes(job.status)) {
+      if (['completed', 'failed', 'blocked'].includes(job.status)) {
         options.onError('');
         return;
       }
@@ -78,11 +88,13 @@ export function startResearchLoop(options: {
       options.onJob(job);
       options.onError('');
       failures = 0;
-      if (!['completed', 'failed'].includes(job.status))
+      if (!['completed', 'failed', 'blocked'].includes(job.status))
         later(
           job.executionResult?.outcome === 'leased'
             ? Math.min(2500, job.executionResult.retryAfterMs + 50)
-            : 350,
+            : job.executionResult?.outcome === 'retry'
+              ? Math.min(8000, job.executionResult.retryAfterMs)
+              : 350,
         );
     } catch (error) {
       if (cancelled) return;

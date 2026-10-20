@@ -14,7 +14,7 @@ export default async function ResearchPage({
     <ResearchWorkspace
       jobId={jobId}
       initialQuery={q?.slice(0, 200) ?? ''}
-      protectedResearch={!!process.env.RESEARCH_ACCESS_CODE}
+      protectedResearch={!!process.env.RESEARCH_ACCESS_CODE && process.env.RESEARCH_PUBLIC_ACCESS !== 'true'}
     />
   );
 }

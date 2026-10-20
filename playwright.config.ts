@@ -32,10 +32,11 @@ export default defineConfig({
   webServer: {
     command: `npm run ${process.env.PLAYWRIGHT_PRODUCTION === '1' ? 'start' : 'dev'} -- --port ${url.port || '80'}`,
     url: baseURL,
-    reuseExistingServer: false,
+    reuseExistingServer: process.env.PLAYWRIGHT_REUSE_SERVER === '1',
     timeout: 120000,
     env: {
       DATABASE_URL: process.env.DATABASE_URL!,
+      NEXT_DIST_DIR: process.env.NEXT_DIST_DIR || '.next',
       OPENAI_API_KEY: '',
       TAVILY_API_KEY: '',
       RESEARCH_ACCESS_CODE: '',

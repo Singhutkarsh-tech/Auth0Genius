@@ -15,7 +15,8 @@ runLiveResearch({
   },
 })
   .then((report) => {
-    process.exitCode = report.outcome === 'reused' ? 2 : report.outcome === 'failed' ? 1 : 0;
+    process.exitCode =
+      report.outcome === 'reused' ? 2 : report.outcome === 'blocked' ? 3 : report.outcome === 'failed' ? 1 : 0;
   })
   .catch(() => {
     console.error('Live smoke failed before a safe report was available.');

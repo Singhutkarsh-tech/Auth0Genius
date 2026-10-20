@@ -24,6 +24,8 @@ Auth0Genius brings those decisions into one workspace, with a clear next action 
 
 Search by provider name, alias, or website. Existing integrations open immediately; unfamiliar providers offer an explicit AI research action. Use `/` or `Cmd/Ctrl+K` to jump into search.
 
+The same search accepts provider names, domains, and full URLs, including developer subdomains. For a URL, A0G validates and fetches that site, constrains identity discovery to its domain, and reuses a saved guide when its official domain matches. It pauses for confirmation when evidence is ambiguous; it does not silently substitute a similarly named result.
+
 The initial library covers **Gmail, Slack, GitHub, Notion, Microsoft Outlook, Salesforce, HubSpot, Dropbox, Linear, and Zoom**. Gmail, Slack, and GitHub are featured and receive the deepest treatment.
 
 ### 2. Choose your authentication route
@@ -71,9 +73,9 @@ Submit a provider name or website, optionally with the permissions your agent ne
 
 You see actual backend stage transitions and retrieved sources. Schema and evidence checks run before the guide is saved to a persistent URL. Missing evidence and failed requests produce visible partial results or errors.
 
-The workflow is bounded and browser-driven. It retries interrupted advancement and expired execution leases; closing every research tab can pause progress between stages. Reopening the job resumes it while the 30-minute session remains valid.
+The workflow is bounded and browser-driven. It retries interrupted advancement and expired execution leases; closing every research tab can pause progress between stages. Reopening the job resumes it while the 30-minute session remains valid. A website URL is retained as the requested identity clue throughout discovery, and the resolved provider name and canonical domain appear in the research workspace once confirmed.
 
-**Demonstrated:** a fresh Airtable run completed real search, retrieval, structured synthesis, validation, and persistence. The saved partial guide opened in fresh browser contexts after an application restart. Its material classifications remain unknown pending semantic review. See the [validation report](docs/validation.md) and [material-claim audit](docs/research-audit.md).
+**Demonstrated:** a fresh Airtable run and a fresh direct-URL Figma run completed real search, retrieval, structured synthesis, validation, and persistence. The Figma request resolved `https://www.figma.com` to the design platform, fetched `developers.figma.com`, and did not switch to `figma.jp`. The guide survived an application restart and opened from a fresh browser context; a second URL submission reused the saved guide without another research run. OAuth 2.0 is documented, while managed-auth availability and approval remain unknown. See the [Figma run record](docs/live-research-direct-figma.json), [validation report](docs/validation.md), and [material-claim audit](docs/research-audit.md).
 
 ## Why ten integrations?
 
@@ -107,6 +109,7 @@ Add real research keys only to ignored `.env` or deployment secret settings. Kee
 | `OPENAI_MODEL`           | Optional model override supporting Responses structured output.                            |
 | `NEXT_PUBLIC_GITHUB_URL` | Optional real repository link for navigation.                                              |
 | `RESEARCH_ACCESS_CODE`   | Optional shared access code to limit research spending.                                    |
+| `RESEARCH_PUBLIC_ACCESS` | Set `true` for an evaluator demo with no code prompt; persistent quotas cap access at 10 research starts/day globally and 2 per IP/day. |
 
 ## Built as one application
 
@@ -114,7 +117,7 @@ A TypeScript **Next.js App Router modular monolith**, with React and Tailwind fo
 
 Pages and APIs live in `src/app`, workspaces in `src/components`, provider content in `src/data`, and database, research, and validation boundaries in `src/lib`. Provider guides, evidence, research jobs, and quotas persist through Prisma. Publication and job completion share a transaction; retries cannot publish the same job twice.
 
-Research uses bounded searches, fetch deadlines, source limits, and LLM limits. Retrieval accepts public HTTPS destinations, validates redirect chains, and pins DNS-checked connections. Retrieved content is treated as untrusted data, and API keys stay server-side. The app never asks for provider passwords, client secrets, or user access tokens.
+Research uses bounded searches, fetch deadlines, source limits, and LLM limits. Provider identity candidates come from live search, then fetched public pages are used to resolve or pause for a human choice; search snippets never become guide evidence. Explicit URLs stay on their requested site. Public demo mode has a persistent 10-start daily global cap and 2 starts per IP/day; keep it disabled for a private deployment. Retrieval accepts public HTTPS destinations, validates redirect chains, and pins DNS-checked connections. Retrieved content is treated as untrusted data, and API keys stay server-side. The app never asks for provider passwords, client secrets, or user access tokens.
 
 ## Validation
 

@@ -1,5 +1,7 @@
 # Validation report
 
+The original-build and P1 checkpoint results below are historical snapshots. The current stabilization and direct-URL results are recorded in the final section.
+
 The original-build results below describe audited commit `374cd9c`. They are historical. Current remediation results and acceptance limits are recorded in the final P1 section.
 
 Build date: **20 October 2026**. Environment: macOS arm64, Node.js 24.12.0, Next.js 16.4.2, Prisma 6.19.3, local SQLite.
@@ -106,3 +108,46 @@ Normal `npm run dev` continues to use the original database configured in `.env`
 ### Remaining deployment limits
 
 Hosted PostgreSQL durability and a deployed origin have not been tested. Production requires hosted storage, environment/secret provisioning, independent semantic review of new provider facts, and a deployment/restart durability check. The existing five development-tooling audit findings remain a separately documented limitation. Local SQLite and browser fixture success do not establish hosted durability.
+
+## Direct URL identity acceptance — 20 October 2026
+
+The search and research entry accepts provider names, bare domains, and HTTPS URLs. It rejects unsafe schemes, credentials, localhost/private IPs, and unsupported formats through the same URL validator used by remote retrieval. The research job retains the supplied URL, fetches that page through the DNS-pinned redirect-safe fetcher, constrains provider discovery to the corresponding normalized domain, and presents the resolved provider name/domain in the workspace. It returns a saved guide when that guide's official domain matches, including an evidenced developer subdomain. Unresolved identities pause for confirmation instead of switching to another search result.
+
+Parser regressions include `Figma`, `figma.com`, `https://www.figma.com`, `https://developers.figma.com`, and `https://kite.trade`; domain tests include www/developer subdomains and common multi-label public suffixes. Existing regressions cover Figma versus `figma.jp`, Zerodha/Kite Connect, a fabricated name, and unrelated companies sharing one name. The browser suite now includes a deterministic direct-Figma URL flow that checks the submitted URL is preserved and the resolved `Figma design platform` / `https://figma.com` identity is shown without a `figma.jp` substitution. This browser mock does not claim live retrieval or generation.
+
+| Current check | Result |
+| --- | --- |
+| `npm run typecheck` | Passed |
+| `npm run lint` | Passed; generated `.next-*` directories are excluded |
+| `npm test` | 132 passed across 9 files |
+| Browser suite | 21 passed against an isolated local SQLite database after the verification-first next-action guard, including desktop/mobile, direct URL, route switching, and recovery checks |
+| Production build | Passed with `NEXT_DIST_DIR=.next-stabilization-final npm run build` (Webpack) |
+| Turbopack production build | The sandbox denied its CSS worker bind (`listen EPERM`); the default build script now uses Webpack, which completed successfully |
+| Fresh direct-URL live research | Passed for Figma; 11 actual fetched sources, all stages 0–6 completed, guide persisted, then verified after server restart |
+
+### Fresh Figma URL run
+
+Input: `https://www.figma.com`. This was a **fresh generation**, not cached guide reuse or a fixture. It resolved to `Figma`, canonical domain `https://figma.com`; fetched both the supplied Figma website and `developers.figma.com`; and did not select `figma.jp`. Actual provider developer sources included the REST API overview, OAuth app registration and scope documentation. The run completed search, retrieval, structured synthesis, evidence validation, and atomic publication (stages 0–6). The guide was saved at `http://127.0.0.1:3183/providers/figma` in an isolated temporary SQLite database.
+
+The supported OAuth classification has retained provider evidence whose text explicitly identifies OAuth 2.0. Composio managed availability and approval remain **unknown**; the model's interpretations were kept unverified. This is a useful partial guide, not a claim that the OAuth registration or provider review path was independently certified. The full safe stage/source report is [live-research-direct-figma.json](live-research-direct-figma.json); a second submission returned `reused`, `fresh: false`, zero stages, and the same guide URL in [live-research-direct-figma-reuse.json](live-research-direct-figma-reuse.json).
+
+After stopping and restarting the production build against the same isolated SQLite file, the verification script opened the saved research URL and guide in fresh browser contexts. It confirmed job completion, the persisted `Figma` guide, retained fetched-source hashes, no page errors, and a mobile viewport without horizontal overflow. Evidence: [live-research-direct-figma-verify.json](live-research-direct-figma-verify.json) and the Figma desktop/mobile captures in `docs/screenshots/`.
+
+The live run exposed and fixed three defects before its successful retry: the initial Figma homepage exceeded the fetch cap (retrieval now keeps a bounded, explicitly truncated prefix); the CLI smoke script treated identity-blocked jobs as endlessly active (it now reports `blocked` and exits); and an unsupported model-generated step URL failed publication (the link is removed and the missing destination is surfaced as unresolved). Earlier failed attempts are not counted as success.
+
+Visual review of the generated guide also showed an unverified setup step being presented as the next action. The recommendation now links to source evidence until that step is verified, with unit and browser regression coverage.
+
+The local seed library remains at ten providers and three featured integrations. Figma was generated only in the temporary validation database and was not added as an eleventh seed. The current production deployment was not changed.
+
+## Release requirement matrix
+
+| Requirement | Status | Evidence / remaining condition |
+| --- | --- | --- |
+| Provider identity and direct URLs | **Passed locally** | Name/domain/URL parsing, safe retrieval, exact domain continuity, ambiguity confirmation, saved-guide reuse, and a fresh Figma URL generation are tested. |
+| OAuth mechanism classification | **Passed with conservative limit** | Figma was classified OAuth 2.0 from retained official text. Zerodha/Kite remains `oauth_like_proprietary`; model interpretation alone cannot promote a protocol. |
+| Evidence quality | **Passed as partial research** | Official vs third-party authority is distinct; unresolved managed auth, approval, timing, and guide steps stay unknown/unverified. This POC has no human-review CMS. |
+| Publication and persistence | **Passed locally** | Existing Prisma transaction/idempotency tests plus a real Figma guide persisted, survived an application restart, and opened in fresh browser contexts. |
+| Research execution and recovery | **Passed in tests** | Bounded stage leases/retries, terminal and blocked handling, safe error responses, publication fencing, and CLI blocked-state exit are covered. |
+| Guide recommendation and visual usability | **Passed locally** | Unverified setup steps send the next action to evidence; desktop and 390px mobile browser checks pass. |
+| Demo access and spend limits | **Implemented; production setting not checked here** | `RESEARCH_PUBLIC_ACCESS=true` removes the hidden-code prompt while persistent limits remain 10 starts/day globally and 2/IP/day. Confirm this Vercel Production setting before sharing the public demo, or share the configured access code with evaluators. |
+| Supabase/Vercel release | **Pending** | No production code or environment change was made in this pass. Apply/migrate the schema for `retryCount`, deploy this commit, and verify a guide remains after a production restart before calling hosted durability accepted. |

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { validateEvidence, downgradeUnreviewed } from '@/lib/validation';
-import { reconcileGuide, resolveIdentityOrigin } from '@/lib/research/synthesis';
+import { detectAuthenticationType, reconcileGuide, resolveIdentityOrigin } from '@/lib/research/synthesis';
 import { liveGuide, reviewedClaim } from './helpers/live-guide';
 describe('Classification consistency and relevant semantic support', () => {
   it('accepts only observed identity origins while treating www as the same host', () => {
@@ -104,7 +104,7 @@ describe('Classification consistency and relevant semantic support', () => {
     );
     expect(validateEvidence(g).approval).toBe('conditional');
   });
-  it('keeps unresolved semantic support unverified despite exact official passage linkage', () => {
+  it('derives protocol support from fetched official OAuth 2.0 text, not the model claim', () => {
     const g = liveGuide();
     g.oauthEvidence = reviewedClaim(
       'OAuth is supported.',
@@ -118,12 +118,55 @@ describe('Classification consistency and relevant semantic support', () => {
       g,
       g.sources.map((s) => ({ ...s, text: s.content! })),
     );
-    expect(output.oauthStatus).toBe('unknown');
+    expect(output.oauthStatus).toBe('supported');
     expect(output.description).toContain('Partial provider research');
-    expect(output.oauthEvidence.status).toBe('unverified');
-    expect(output.oauthEvidence.support?.review).toBe('unresolved');
+    expect(output.oauthEvidence.status).toBe('verified');
+    expect(output.oauthEvidence.support?.review).toBe('rule_checked');
+    expect(output.authenticationType).toBe('oauth2');
     expect(output.sources[0].content).toContain('OAuth 2.0');
     expect(output.steps).toHaveLength(1);
+  });
+  it('does not classify OAuth 2.0 without an explicitly supported provider claim', () => {
+    const g = liveGuide();
+    g.authenticationType = 'oauth2';
+    expect(() => validateEvidence(g)).toThrow('Authentication mechanism requires relevant verified provider evidence');
+  });
+  it('classifies Figma from fetched OAuth 2 provider text rather than model output', () => {
+    const source = liveGuide().sources[0];
+    source.url = 'https://developers.figma.com/docs/rest-api/authentication/';
+    source.domain = 'developers.figma.com';
+    source.content = 'The recommended way is to create an OAuth 2 app. OAuth 2.0 uses authorization code.';
+    source.capture = 'fetched';
+    source.topics = ['oauth', 'general'];
+    expect(detectAuthenticationType([{ ...source, text: source.content }])).toMatchObject({
+      type: 'oauth2',
+      passage: 'OAuth 2',
+      source: { authority: 'provider', capture: 'fetched' },
+    });
+  });
+  it('does not call Zerodha Kite Connect standard OAuth 2 from its OAuth-style flow', () => {
+    const source = liveGuide().sources[0];
+    source.url = 'https://kite.trade/docs/connect/v3/user/';
+    source.domain = 'kite.trade';
+    source.content = 'Kite Connect uses an OAuth-style login flow with request_token and checksum.';
+    source.capture = 'fetched';
+    source.topics = ['oauth', 'general'];
+    expect(detectAuthenticationType([{ ...source, text: source.content }])).toMatchObject({
+      type: 'oauth_like_proprietary',
+    });
+  });
+  it.each([
+    ['OAuth 1.0', 'oauth1'],
+    ['Authentication using an API key', 'api_key'],
+    ['This API does not support OAuth', 'unsupported'],
+  ] as const)('keeps protocol classification distinct for %s', (text, expected) => {
+    const source = liveGuide().sources[0];
+    source.url = 'https://provider.example/docs/auth';
+    source.domain = 'provider.example';
+    source.content = text;
+    source.capture = 'fetched';
+    source.topics = ['oauth', 'general'];
+    expect(detectAuthenticationType([{ ...source, text: source.content }])?.type).toBe(expected);
   });
   it('safely reads legacy records without retaining unsupported positive badges', () => {
     const g = liveGuide();
@@ -142,7 +185,7 @@ it('uses an API-compatible output schema while retaining server URL validation',
   expect(() => validateEvidence(g)).toThrow();
 });
 
-it('downgrades unresolved mismatched model passages instead of publishing fabricated evidence', () => {
+it('replaces a mismatched model excerpt with an exact fetched protocol passage', () => {
   const g = liveGuide();
   g.oauthEvidence = reviewedClaim(
     'OAuth supported',
@@ -155,9 +198,9 @@ it('downgrades unresolved mismatched model passages instead of publishing fabric
     g,
     g.sources.map((s) => ({ ...s, text: s.content! })),
   );
-  expect(output.oauthEvidence.support).toBeNull();
-  expect(output.oauthStatus).toBe('unknown');
-  expect(output.unknowns.join(' ')).toContain('Unresolved passage support removed');
+  expect(output.oauthEvidence.support?.references[0].passage).toBe('OAuth 2.0');
+  expect(output.oauthStatus).toBe('supported');
+  expect(output.oauthEvidence.support?.review).toBe('rule_checked');
 });
 
 it('does not present unresolved provider approval as an estimate', () => {

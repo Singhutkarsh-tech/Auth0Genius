@@ -142,6 +142,16 @@ export function GuideWorkspace({ guide }: { guide: Guide }) {
           <ShieldCheck size={12} />
           OAuth {guide.oauthStatus}
         </Badge>
+        <Badge tone={guide.authenticationType === 'unverified' ? 'amber' : 'neutral'}>
+          Mechanism: {{
+            oauth2: 'OAuth 2.0',
+            oauth1: 'OAuth 1.0',
+            oauth_like_proprietary: 'OAuth-like proprietary',
+            api_key: 'API key',
+            unsupported: 'Unsupported',
+            unverified: 'Unverified',
+          }[guide.authenticationType]}
+        </Badge>
         <Badge tone={guide.managedAuth === 'available' ? 'purple' : 'neutral'}>
           Managed auth {guide.managedAuth}
         </Badge>
@@ -600,6 +610,8 @@ export function GuideWorkspace({ guide }: { guide: Guide }) {
             <div className="detail-block">
               <h3>OAuth classification</h3>
               <ClaimText claim={guide.oauthEvidence} />
+              <h3>Authentication mechanism</h3>
+              <ClaimText claim={guide.authenticationEvidence} />
               <h3>Managed authentication classification</h3>
               <ClaimText claim={guide.managedEvidence} />
               <h3>Provider approval classification</h3>
@@ -612,9 +624,10 @@ export function GuideWorkspace({ guide }: { guide: Guide }) {
               <EvidenceBadge status="not_applicable" />
             </div>
             <p className="small-note">
-              “Reviewed source support” means a specific interpretation was reviewed against
-              retained material. Official source authority and exact passage matching alone do not
-              establish semantic support or approval.
+              A rule-checked authentication type comes from a narrow protocol phrase in fetched
+              provider documentation. It establishes the protocol label only; it does not verify
+              scopes, approval, launch readiness, or a working connection. Other claims remain
+              unverified until their meaning is reviewed against retained evidence.
             </p>
             <div className="source-list">
               {guide.sources.map((s, i) => (

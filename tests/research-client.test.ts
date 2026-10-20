@@ -10,6 +10,7 @@ const job = (overrides: Partial<PublicJob> = {}): PublicJob => ({
   outputUrl: null,
   attempted: [],
   sources: [],
+  identityCandidates: [],
   ...overrides,
 });
 const response = (data: unknown, status = 200) =>
@@ -29,6 +30,7 @@ describe('Cancellable browser research recovery loop', () => {
         job({
           execution: {
             claimable: Date.now() >= 2000,
+            blocked: false,
             leaseUntil: new Date(2000).toISOString(),
             retryAfterMs: Math.max(0, 2000 - Date.now()),
             terminal: false,
