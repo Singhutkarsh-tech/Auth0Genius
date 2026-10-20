@@ -1,0 +1,7 @@
+node_modules
+.next
+package-lock.json
+public/logos/*.svg
+playwright-report
+test-results
+docs/screenshots

@@ -1,0 +1,58 @@
+{
+  "name": "auth0genius",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --hostname 0.0.0.0",
+    "build": "node scripts/prepare-db.mjs generate && next build",
+    "start": "next start --hostname 0.0.0.0",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "test:e2e": "playwright test",
+    "db:push": "node scripts/prepare-db.mjs push",
+    "db:seed": "node --import tsx prisma/seed.ts",
+    "db:production": "node scripts/prepare-db.mjs production",
+    "research:live": "node --import tsx scripts/live-research.ts",
+    "format": "prettier --write ."
+  },
+  "dependencies": {
+    "@fontsource/geist": "^5.3.0",
+    "@fontsource/geist-mono": "^5.3.0",
+    "@prisma/client": "^6.19.0",
+    "@radix-ui/react-tabs": "latest",
+    "@radix-ui/react-tooltip": "latest",
+    "cheerio": "latest",
+    "clsx": "latest",
+    "ipaddr.js": "latest",
+    "lucide-react": "latest",
+    "motion": "latest",
+    "next": "16.4.2",
+    "openai": "latest",
+    "react": "latest",
+    "react-dom": "latest",
+    "tailwind-merge": "latest",
+    "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "latest",
+    "@tailwindcss/postcss": "latest",
+    "@types/node": "latest",
+    "@types/react": "latest",
+    "@types/react-dom": "latest",
+    "eslint": "latest",
+    "eslint-config-next": "16.4.2",
+    "prettier": "^3.9.10",
+    "prisma": "^6.19.0",
+    "tailwindcss": "latest",
+    "tsx": "latest",
+    "typescript": "latest",
+    "vitest": "latest"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  },
+  "overrides": {
+    "deepmerge-ts": "^8.0.0"
+  }
+}

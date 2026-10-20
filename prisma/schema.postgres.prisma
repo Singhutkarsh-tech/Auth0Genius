@@ -1,0 +1,72 @@
+generator client {
+  provider = "prisma-client-js"
+}
+datasource db {
+  provider = "postgresql"
+  url = env("DATABASE_URL")
+}
+model Provider {
+  id String @id @default(cuid())
+  slug String @unique
+  name String
+  website String
+  description String
+  category String
+  logo String?
+  aliases Json
+  featured Boolean @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  guides Guide[]
+}
+model Guide {
+  id String @id @default(cuid())
+  providerId String
+  provider Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  version Int @default(1)
+  status String
+  oauthStatus String
+  managedAuth String
+  difficulty String
+  approval String
+  content Json
+  generatedAt DateTime @default(now())
+  checkedAt DateTime?
+  sources EvidenceSource[]
+  @@unique([providerId, version])
+}
+model EvidenceSource {
+  id String @id @default(cuid())
+  guideId String
+  guide Guide @relation(fields: [guideId], references: [id], onDelete: Cascade)
+  sourceId String
+  title String
+  url String
+  domain String
+  sourceType String
+  accessedAt DateTime
+  summary String
+  @@unique([guideId, sourceId])
+}
+model ResearchJob {
+  id String @id @default(cuid())
+  query String
+  normalizedProvider String
+  dedupKey String? @unique
+  status String @default("queued")
+  currentStage Int @default(0)
+  completedStages Json
+  context Json
+  error String?
+  outputGuideId String?
+  outputSlug String?
+  leaseUntil DateTime?
+  startedAt DateTime @default(now())
+  completedAt DateTime?
+  @@index([normalizedProvider, status])
+}
+model ResearchQuota {
+  id String @id
+  count Int @default(1)
+  expiresAt DateTime
+}

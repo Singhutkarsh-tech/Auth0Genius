@@ -1,0 +1,1 @@
+Provider marks were downloaded from https://logos.composio.dev/api/{toolkit} on 2026-10-20. These are third-party trademarks used solely to identify their respective services. No endorsement is implied. New providers use a text initial until a trusted asset is supplied.
