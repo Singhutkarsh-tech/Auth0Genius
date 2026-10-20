@@ -26,57 +26,74 @@ import {
 } from 'lucide-react';
 import type { Guide } from '@/lib/validation';
 import { stages } from '@/lib/validation';
+import {
+  applicableSteps,
+  routeReadiness,
+  emptyWorkspace,
+  restoreWorkspace,
+  type AuthRoute,
+  type WorkspaceProgress,
+} from '@/lib/workspace';
 import { approvalLabel, difficultyTone, launchState, nextAction } from '@/lib/providers';
 import { Badge, ClaimText, EvidenceBadge, ExternalLink as OfficialLink, ProviderLogo } from './ui';
 const emptySubscribe = () => () => {};
 export function GuideWorkspace({ guide }: { guide: Guide }) {
   const key = `auth0genius:${guide.slug}:v${guide.version}`;
-  const [completed, setCompleted] = useState<string[]>([]);
-  const [blocked, setBlocked] = useState<string[]>([]);
+  const [workspace, setWorkspace] = useState(emptyWorkspace);
+  const [progressLoaded, setProgressLoaded] = useState(false);
   const [copied, setCopied] = useState(false);
   const [copyError, setCopyError] = useState(false);
-  const [route, setRoute] = useState<'custom' | 'managed'>(
-    guide.managedAuth === 'available' ? 'managed' : 'custom',
-  );
   const [storageWarning, setStorageWarning] = useState(false);
   const hydrated = useSyncExternalStore(
     emptySubscribe,
     () => true,
     () => false,
   );
-  // Browser progress is loaded after hydration so server markup remains deterministic.
-  /* eslint-disable react-hooks/set-state-in-effect -- Browser storage is hydrated once after server rendering. */
+  const route = workspace.route;
+  const { completed, blocked } = workspace.progress[route];
+  const stepsForRoute = applicableSteps(guide, route);
+  const readiness = routeReadiness(guide, route);
+  const callbackSource = guide.sources.find(
+    (s) =>
+      s.authority === 'composio' &&
+      s.topics.includes('setup') &&
+      (s.content ?? s.summary).includes(
+        'https://backend.composio.dev/api/v3/toolkits/auth/callback',
+      ),
+  );
+  /* eslint-disable react-hooks/set-state-in-effect -- Restore version/route-scoped browser progress after hydration. */
   useEffect(() => {
     try {
-      const saved = JSON.parse(localStorage.getItem(key) ?? '{}');
-      const ids = new Set(guide.steps.map((s) => s.id));
-      const clean = (v: unknown) =>
-        Array.isArray(v)
-          ? v.filter((id): id is string => typeof id === 'string' && ids.has(id))
-          : [];
-      setCompleted(clean(saved.completed));
-      setBlocked(clean(saved.blocked));
+      setWorkspace(restoreWorkspace(guide, JSON.parse(localStorage.getItem(key) ?? 'null')));
     } catch {
       setStorageWarning(true);
     }
-  }, [key, guide.steps]);
+    setProgressLoaded(true);
+  }, [key, guide]);
   /* eslint-enable react-hooks/set-state-in-effect */
-  const update = (next: string[], stuck = blocked) => {
-    setCompleted(next);
-    setBlocked(stuck);
+  const persist = (next: WorkspaceProgress) => {
+    setWorkspace(next);
     try {
-      localStorage.setItem(key, JSON.stringify({ completed: next, blocked: stuck }));
+      localStorage.setItem(key, JSON.stringify(next));
     } catch {
       setStorageWarning(true);
     }
   };
+  const setRoute = (value: AuthRoute) => persist({ ...workspace, route: value });
+  const update = (next: string[], stuck = blocked) =>
+    persist({
+      ...workspace,
+      progress: { ...workspace.progress, [route]: { completed: next, blocked: stuck } },
+    });
   const toggle = (id: string) =>
     update(
       completed.includes(id) ? completed.filter((x) => x !== id) : [...completed, id],
       blocked.filter((x) => x !== id),
     );
   const next = nextAction(guide, completed, route);
-  const progress = Math.round((completed.length / guide.steps.length) * 100);
+  const progress = stepsForRoute.length
+    ? Math.round((completed.length / stepsForRoute.length) * 100)
+    : 0;
   async function share() {
     try {
       await navigator.clipboard.writeText(`${location.origin}/providers/${guide.slug}`);
@@ -87,7 +104,7 @@ export function GuideWorkspace({ guide }: { guide: Guide }) {
     }
   }
   return (
-    <main id="main" className="page-shell guide-page">
+    <main id="main" className="page-shell guide-page" data-auth-route={route}>
       <div className="breadcrumbs">
         <Link href="/providers">
           <ArrowLeft size={14} />
@@ -186,7 +203,7 @@ export function GuideWorkspace({ guide }: { guide: Guide }) {
             <ClipboardCheck size={18} />
             <strong>Your setup progress</strong>
             <span>
-              {completed.length} of {guide.steps.length} steps reported complete
+              {completed.length} of {stepsForRoute.length} steps reported complete
             </span>
             <div className="progress-track">
               <div style={{ width: `${progress}%` }} />
@@ -205,33 +222,35 @@ export function GuideWorkspace({ guide }: { guide: Guide }) {
                 <h2>Your launch readiness</h2>
                 <p>The work you control. The dependencies you don’t.</p>
               </div>
-              <Badge>Custom OAuth route</Badge>
+              <Badge>
+                {route === 'managed' ? 'Managed authentication route' : 'Custom OAuth route'}
+              </Badge>
             </div>
             <div className="readiness-grid">
               <div className="readiness-card">
                 <span>SETUP DIFFICULTY</span>
                 <strong>
-                  <span className={`difficulty-dot ${difficultyTone(guide.difficulty)}`} />
-                  {guide.difficulty}
+                  <span className={`difficulty-dot ${difficultyTone(readiness.difficulty)}`} />
+                  {readiness.difficulty}
                 </strong>
-                <p>{guide.difficultyExplanation.text}</p>
-                <EvidenceBadge status={guide.difficultyExplanation.status} />
+                <p>{readiness.difficultyExplanation.text}</p>
+                <EvidenceBadge status={readiness.difficultyExplanation.status} />
               </div>
               <div className="readiness-card">
                 <span>HANDS-ON EFFORT</span>
-                <strong>{guide.setupEffort.text.replace(', estimated', '')}</strong>
+                <strong>{readiness.setupEffort.text.replace(', estimated', '')}</strong>
                 <p>Developer work. Excludes provider waiting and review preparation.</p>
-                <EvidenceBadge status={guide.setupEffort.status} />
+                <EvidenceBadge status={readiness.setupEffort.status} />
               </div>
               <div className="readiness-card">
                 <span>EXTERNAL WAIT</span>
                 <strong>Unknown / conditional</strong>
-                <p>{guide.approvalTime.text}</p>
-                <EvidenceBadge status={guide.approvalTime.status} />
+                <p>{readiness.approvalTime.text}</p>
+                <EvidenceBadge status={readiness.approvalTime.status} />
               </div>
               <div className="readiness-card">
                 <span>APPROVAL</span>
-                <strong>{approvalLabel(guide.approval)}</strong>
+                <strong>{approvalLabel(readiness.approval)}</strong>
                 <p>Depends on permissions, distribution, and account policies.</p>
                 <a href="#approval" className="text-link">
                   See requirements
@@ -243,7 +262,7 @@ export function GuideWorkspace({ guide }: { guide: Guide }) {
               <TriangleAlert size={18} />
               <div>
                 <strong>The main launch dependency</strong>
-                <ClaimText claim={guide.mainBlocker} />
+                <ClaimText claim={readiness.mainBlocker} />
               </div>
             </div>
             <div className="launch-route">
@@ -256,7 +275,7 @@ export function GuideWorkspace({ guide }: { guide: Guide }) {
               </div>
               <div className="route-stages">
                 {stages.map((stage, i) => {
-                  const state = launchState(guide, stage, completed, blocked);
+                  const state = launchState(guide, stage, completed, blocked, route);
                   return (
                     <div
                       className={`route-stage ${state === 'Completed by user' ? 'done' : state === 'Blocked' ? 'blocked' : ''}`}
@@ -286,9 +305,10 @@ export function GuideWorkspace({ guide }: { guide: Guide }) {
                 <p>Check managed authentication before registering your own app.</p>
               </div>
             </div>
-            <div className="auth-options">
+            <div className="auth-options" role="group" aria-label="Authentication route">
               <button
                 onClick={() => setRoute('managed')}
+                aria-pressed={route === 'managed'}
                 className={`auth-option ${route === 'managed' ? 'selected' : ''}`}
               >
                 <span className="option-radio">{route === 'managed' && <span />}</span>
@@ -305,6 +325,7 @@ export function GuideWorkspace({ guide }: { guide: Guide }) {
               </button>
               <button
                 onClick={() => setRoute('custom')}
+                aria-pressed={route === 'custom'}
                 className={`auth-option ${route === 'custom' ? 'selected' : ''}`}
               >
                 <span className="option-radio">{route === 'custom' && <span />}</span>
@@ -324,15 +345,25 @@ export function GuideWorkspace({ guide }: { guide: Guide }) {
                   Check the documented route
                 </OfficialLink>
                 <p className="small-note">
-                  Confirm toolkit availability and scope coverage. The checklist below covers custom
-                  OAuth registration.
+                  {guide.managedAuth === 'available'
+                    ? 'The checklist follows the managed route. Select custom OAuth to plan your own registration.'
+                    : 'The checklist checks availability first. No managed connection has been established.'}
                 </p>
               </div>
             ) : (
               <div className="auth-detail">
                 <p>
-                  <strong>The checklist below walks through your custom app.</strong> Register with
-                  the provider, then configure its credentials in Composio.
+                  {guide.oauthStatus === 'supported' ? (
+                    <>
+                      <strong>The checklist below walks through your custom app.</strong> Register
+                      with the provider, then configure its credentials in Composio.
+                    </>
+                  ) : (
+                    <>
+                      <strong>Review OAuth evidence before registration.</strong> The custom
+                      checklist starts with the unresolved provider evidence.
+                    </>
+                  )}
                 </p>
                 <div className="concept-line">
                   <span>
@@ -357,7 +388,7 @@ export function GuideWorkspace({ guide }: { guide: Guide }) {
                 <p>One concrete step at a time. You’re in control.</p>
               </div>
               <Badge tone="purple">
-                {completed.length} / {guide.steps.length} complete
+                {completed.length} / {stepsForRoute.length} complete
               </Badge>
             </div>
             <details className="prerequisites">
@@ -365,7 +396,7 @@ export function GuideWorkspace({ guide }: { guide: Guide }) {
                 Before you start <ChevronDown size={15} />
               </summary>
               <ul>
-                {guide.prerequisites.map((p) => (
+                {readiness.prerequisites.map((p) => (
                   <li key={p}>{p}</li>
                 ))}
               </ul>
@@ -381,7 +412,7 @@ export function GuideWorkspace({ guide }: { guide: Guide }) {
               </div>
             )}
             <div className="checklist">
-              {guide.steps.map((step, i) => (
+              {stepsForRoute.map((step, i) => (
                 <article
                   className={`setup-step ${completed.includes(step.id) ? 'complete' : ''}`}
                   id={`step-${step.id}`}
@@ -389,6 +420,7 @@ export function GuideWorkspace({ guide }: { guide: Guide }) {
                 >
                   <input
                     type="checkbox"
+                    disabled={!progressLoaded}
                     checked={completed.includes(step.id)}
                     onChange={() => toggle(step.id)}
                     aria-label={`Complete ${step.title}`}
@@ -421,7 +453,11 @@ export function GuideWorkspace({ guide }: { guide: Guide }) {
                     )}
                     <div className="step-actions">
                       {step.url && (
-                        <OfficialLink href={step.url}>Official instructions</OfficialLink>
+                        <OfficialLink href={step.url}>
+                          {guide.sources.find((s) => s.url === step.url)?.type === 'official'
+                            ? 'Official instructions'
+                            : 'Source instructions (authority unverified)'}
+                        </OfficialLink>
                       )}
                       <button
                         className="text-button"
@@ -442,24 +478,26 @@ export function GuideWorkspace({ guide }: { guide: Guide }) {
                 </article>
               ))}
             </div>
-            <div className="callback-panel">
-              <div>
-                <LockKeyhole size={16} />
-                <strong>Match the callback. Keep secrets out of this guide.</strong>
+            {route === 'custom' && guide.oauthStatus === 'supported' && callbackSource && (
+              <div className="callback-panel">
+                <div>
+                  <LockKeyhole size={16} />
+                  <strong>Match the callback. Keep secrets out of this guide.</strong>
+                </div>
+                <p>
+                  Confirm the actual oauth_redirect_uri in your Composio auth config and register
+                  that identical value with the provider. The documented v3 URI is below; defaults
+                  can differ.
+                </p>
+                <code className="callback-code">
+                  https://backend.composio.dev/api/v3/toolkits/auth/callback
+                </code>
+                <a className="text-link" href={`#source-${callbackSource.id}`}>
+                  Callback documentation
+                  <ArrowRight size={12} />
+                </a>
               </div>
-              <p>
-                The documented Composio v3 callback is below. Confirm the actual{' '}
-                <code>oauth_redirect_uri</code> in your auth config; some defaults use a supported
-                v1 URI. This is different from your application’s post-connection return URL.
-              </p>
-              <code className="callback-code">
-                https://backend.composio.dev/api/v3/toolkits/auth/callback
-              </code>
-              <a className="text-link" href="#source-callback">
-                Callback documentation
-                <ArrowRight size={12} />
-              </a>
-            </div>
+            )}
           </section>
           <section id="approval" className="guide-section">
             <div className="section-title">
@@ -540,7 +578,11 @@ export function GuideWorkspace({ guide }: { guide: Guide }) {
                 <div>
                   <ClaimText claim={item.reason} />
                   <p className="fix-action">
-                    <strong>Next action</strong>
+                    <strong>
+                      {item.reason.status === 'verified'
+                        ? 'Next action'
+                        : 'Unverified suggestion · confirm applicability'}
+                    </strong>
                     {item.action}
                   </p>
                 </div>
@@ -555,6 +597,14 @@ export function GuideWorkspace({ guide }: { guide: Guide }) {
               </div>
               <Badge>{guide.sources.length} sources</Badge>
             </div>
+            <div className="detail-block">
+              <h3>OAuth classification</h3>
+              <ClaimText claim={guide.oauthEvidence} />
+              <h3>Managed authentication classification</h3>
+              <ClaimText claim={guide.managedEvidence} />
+              <h3>Provider approval classification</h3>
+              <ClaimText claim={guide.approvalEvidence} />
+            </div>
             <div className="evidence-legend">
               <EvidenceBadge status="verified" />
               <EvidenceBadge status="estimated" />
@@ -562,8 +612,9 @@ export function GuideWorkspace({ guide }: { guide: Guide }) {
               <EvidenceBadge status="not_applicable" />
             </div>
             <p className="small-note">
-              “Source-backed” means linked documentation supports the claim. It is not a measured
-              confidence score or a guarantee that your app is approved.
+              “Reviewed source support” means a specific interpretation was reviewed against
+              retained material. Official source authority and exact passage matching alone do not
+              establish semantic support or approval.
             </p>
             <div className="source-list">
               {guide.sources.map((s, i) => (
@@ -572,6 +623,19 @@ export function GuideWorkspace({ guide }: { guide: Guide }) {
                   <div>
                     <OfficialLink href={s.url}>{s.title}</OfficialLink>
                     <p>{s.summary}</p>
+                    <small>
+                      Authority: {s.authority} · Capture: {s.capture}. Topic tags indicate
+                      relevance, not semantic verification.
+                    </small>
+                    {s.content && (
+                      <details>
+                        <summary>Retained fetched text</summary>
+                        <p>{s.content}</p>
+                      </details>
+                    )}
+                    {s.originalUrl && s.originalUrl !== s.url && (
+                      <p>Original discovery URL: {s.originalUrl}</p>
+                    )}
                     <small>
                       {s.domain} ·{' '}
                       {s.type === 'official' ? 'Official source' : 'Third-party source'} · Checked{' '}

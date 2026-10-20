@@ -1,10 +1,20 @@
 import { Prisma } from '@prisma/client';
 import { db } from '.';
-import { validateEvidence, type Guide } from '../validation';
+import { validateEvidence, downgradeUnreviewed, type Guide } from '../validation';
 import { seedGuides } from '@/data/seed-providers';
-export async function saveGuide(input: Guide) {
+export async function saveGuide(
+  input: Guide,
+  options: { tx?: Prisma.TransactionClient; publicationId?: string } = {},
+) {
   const guide = validateEvidence(input);
-  return db.$transaction(async (tx) => {
+  const write = async (tx: Prisma.TransactionClient) => {
+    if (options.publicationId) {
+      const existing = await tx.guide.findUnique({
+        where: { id: options.publicationId },
+        include: { provider: true },
+      });
+      if (existing) return { id: existing.id, slug: existing.provider.slug };
+    }
     const previous = await tx.provider.findUnique({ where: { slug: guide.slug } });
     const aliases = [
       ...new Set([
@@ -61,6 +71,7 @@ export async function saveGuide(input: Guide) {
         content: content as unknown as Prisma.InputJsonValue,
       },
       create: {
+        ...(options.publicationId ? { id: options.publicationId } : {}),
         providerId: provider.id,
         version,
         status: guide.status,
@@ -88,7 +99,8 @@ export async function saveGuide(input: Guide) {
         },
       });
     return { id: record.id, slug: provider.slug };
-  });
+  };
+  return options.tx ? write(options.tx) : db.$transaction(write);
 }
 export async function listGuides(): Promise<Guide[]> {
   try {
@@ -97,7 +109,27 @@ export async function listGuides(): Promise<Guide[]> {
       orderBy: { createdAt: 'asc' },
     });
     if (!providers.length) return seedGuides;
-    const saved = providers.flatMap((p) => p.guides.map((g) => validateEvidence(g.content)));
+    const saved = providers.flatMap((p) =>
+      p.guides.flatMap((g) => {
+        // Use current reviewed seed definitions without rewriting the user's database.
+        const seed = seedGuides.find((s) => s.slug === p.slug);
+        if (
+          seed &&
+          (g.content as { provenance?: { method?: string } }).provenance?.method === 'seed_research'
+        )
+          return [seed];
+        try {
+          return [
+            (g.content as { provenance?: { method?: string } }).provenance?.method ===
+            'live_research'
+              ? downgradeUnreviewed(g.content)
+              : validateEvidence(g.content),
+          ];
+        } catch {
+          return [downgradeUnreviewed(g.content)];
+        }
+      }),
+    );
     return [...new Map([...seedGuides, ...saved].map((g) => [g.slug, g])).values()];
   } catch (error) {
     console.error(

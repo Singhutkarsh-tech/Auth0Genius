@@ -1,0 +1,139 @@
+{
+  "input": "Airtable",
+  "startedAt": "2026-10-20T07:32:01.424Z",
+  "outcome": "generated_pending_semantic_review",
+  "fresh": true,
+  "stages": [
+    {
+      "status": "queued",
+      "stage": 0,
+      "completedStages": []
+    },
+    {
+      "status": "running",
+      "stage": 1,
+      "completedStages": [
+        0
+      ]
+    },
+    {
+      "status": "running",
+      "stage": 2,
+      "completedStages": [
+        0,
+        1
+      ]
+    },
+    {
+      "status": "running",
+      "stage": 3,
+      "completedStages": [
+        0,
+        1,
+        2
+      ]
+    },
+    {
+      "status": "running",
+      "stage": 4,
+      "completedStages": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "status": "running",
+      "stage": 5,
+      "completedStages": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ]
+    },
+    {
+      "status": "running",
+      "stage": 6,
+      "completedStages": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ]
+    },
+    {
+      "status": "completed",
+      "stage": 7,
+      "completedStages": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ]
+    }
+  ],
+  "sourceUrls": [
+    "https://support.airtable.com/articles/6811769763-third-party-integrations-via-oauth-overview",
+    "https://support.airtable.com/articles/9362950318-using-builder-hub-in-airtable",
+    "https://airtable.com/developers/agents/mcp/getting-started",
+    "https://docs.composio.dev/toolkits/managed-auth",
+    "https://docs.composio.dev/docs/authentication/custom-app-vs-managed-app",
+    "https://community.airtable.com/development-apis-11/oauth-application-6995",
+    "https://support.airtable.com/articles/5478596596-salesforce-connected-apps-security-update",
+    "https://www.airtable.com/company/trust-and-security"
+  ],
+  "attempted": [
+    "Initial discovery had no provider-domain candidate: https://en.wikipedia.org/wiki/Airtable, https://leadiq.com/c/airtable/5a1d9d7123000053008d49c1, https://leadiq.com/c/switchboard/619d84d0b861d1aa196ce8b9, https://leadiq.com/c/dopt/619d84d0b861d1aa196ce8b9, https://www.linkedin.com/company/airtable",
+    "Searched for provider identity and official developer documentation",
+    "Discovery URLs (not verified evidence): https://support.airtable.com/articles/6811769763-third-party-integrations-via-oauth-overview",
+    "Selected observed provider identity origin: https://support.airtable.com",
+    "Retrieved https://support.airtable.com/articles/6811769763-third-party-integrations-via-oauth-overview (7975 readable characters)",
+    "Searched for OAuth capability evidence",
+    "Retrieved https://support.airtable.com/articles/9362950318-using-builder-hub-in-airtable (4888 readable characters)",
+    "Searched for registration, scopes and redirect documentation",
+    "Retrieved https://airtable.com/developers/agents/mcp/getting-started (5350 readable characters)",
+    "Checked Composio documentation for managed versus custom authentication",
+    "Retrieved https://docs.composio.dev/toolkits/managed-auth (14000 readable characters)",
+    "Retrieved https://docs.composio.dev/docs/authentication/custom-app-vs-managed-app (12325 readable characters)",
+    "Searched official-domain review and distribution requirements",
+    "Retrieved https://community.airtable.com/development-apis-11/oauth-application-6995 (5397 readable characters)",
+    "Retrieved https://support.airtable.com/articles/5478596596-salesforce-connected-apps-security-update (5436 readable characters)",
+    "Retrieved https://www.airtable.com/company/trust-and-security (6074 readable characters)",
+    "Compared retrieved evidence and synthesized a structured guide using OpenAI",
+    "Validated guide schema, source references and retrieved destination URLs"
+  ],
+  "jobId": "cmvgd7tti0000y6gl83ippdiy",
+  "model": "gpt-4.1-mini",
+  "outputUrl": "http://localhost:3185/providers/airtable",
+  "claims": [
+    {
+      "topic": "oauth",
+      "classification": "unknown",
+      "text": "OAuth support remains unverified. Unreviewed interpretation: Airtable provides OAuth integrations that allow users to grant API access to their Airtable resources with third-party services and control access scopes; tokens can be revoked and multiple authorizations per service are allowed. Composio manages OAuth apps for Airtable, removing the need for separate app registration.",
+      "status": "unverified",
+      "passages": []
+    },
+    {
+      "topic": "managed_auth",
+      "classification": "unknown",
+      "text": "Managed availability remains unverified. Unreviewed interpretation: Composio manages Airtable's OAuth app, so you do not have to register your own OAuth app or handle client credentials for the default authentication method.",
+      "status": "unverified",
+      "passages": []
+    },
+    {
+      "topic": "approval",
+      "classification": "unknown",
+      "text": "Approval requirements remain unverified. Unreviewed interpretation: Enterprise administrators may need to approve OAuth apps such as the Airtable Connected App for Salesforce integrations. Admin procedures include granting permission sets or uninstalling apps.",
+      "status": "estimated",
+      "passages": []
+    }
+  ]
+}

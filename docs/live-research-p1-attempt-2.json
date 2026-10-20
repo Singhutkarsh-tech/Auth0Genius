@@ -1,0 +1,26 @@
+{
+  "input": "Airtable",
+  "startedAt": "2026-10-20T07:14:07.751Z",
+  "outcome": "failed",
+  "fresh": true,
+  "stages": [
+    {
+      "status": "queued",
+      "stage": 0,
+      "completedStages": []
+    },
+    {
+      "status": "failed",
+      "stage": 0,
+      "completedStages": []
+    }
+  ],
+  "sourceUrls": [],
+  "attempted": [
+    "Searched for provider identity and official developer documentation",
+    "Discovery URLs (not verified evidence): https://apps.make.com/airtable?hl=en, https://developer.transmitsecurity.com/guides/automated-workflows/integrations/builtin/credentials/airtable, https://datafetcher.com/blog/airtable-oauth2-api, https://support.airtable.com/articles/6811769763-third-party-integrations-via-oauth-overview, https://community.retool.com/t/how-to-connect-to-airtable-via-oauth/39187"
+  ],
+  "jobId": "cmvgcktbs0000y6ux1yly4lr3",
+  "model": "gpt-4.1-mini",
+  "error": "Provider identity was not supported by search results"
+}

@@ -1,5 +1,5 @@
 import { db } from '@/lib/db';
-import { advanceJob, type Context } from '@/lib/research/engine';
+import { advanceJob, executionState, type Context } from '@/lib/research/engine';
 import { errorJson, sameOrigin, validAccessCode } from '@/lib/research/request';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -22,6 +22,9 @@ async function publicJob(id: string) {
     sources: context.sources.map((s) => ({ id: s.id, title: s.title, url: s.url, type: s.type })),
     startedAt: job.startedAt,
     completedAt: job.completedAt,
+    outputGuideId: job.outputGuideId,
+    model: process.env.OPENAI_MODEL || 'gpt-4.1-mini',
+    execution: executionState(job),
   };
 }
 export async function GET(_request: Request, { params }: Params) {
@@ -42,8 +45,11 @@ export async function POST(request: Request, { params }: Params) {
   try {
     const job = await publicJob(jobId);
     if (!job) return errorJson('Research job not found.', 404);
-    await advanceJob(jobId);
-    return Response.json(await publicJob(jobId), { headers: { 'Cache-Control': 'no-store' } });
+    const executionResult = await advanceJob(jobId);
+    return Response.json(
+      { ...(await publicJob(jobId)), executionResult },
+      { headers: { 'Cache-Control': 'no-store' } },
+    );
   } catch (error) {
     console.error('Research advancement failed', error);
     return errorJson('Could not advance research. Retry this stage later.', 503);

@@ -1,0 +1,85 @@
+{
+  "checkedAt": "2026-10-20T08:03:11.498Z",
+  "phase": "Fresh contexts after application restart; preserved isolated SQLite database",
+  "jobId": "cmvgd7tti0000y6gl83ippdiy",
+  "guideId": "research-cmvgd7tti0000y6gl83ippdiy",
+  "generatedAt": "2026-10-20T07:32:45.286Z",
+  "outputUrl": "http://localhost:3185/providers/airtable",
+  "completedStages": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6
+  ],
+  "researchPageNavigatedToSavedGuide": true,
+  "independentSavedUrlOpened": true,
+  "mobileFits": true,
+  "pageErrors": [],
+  "fetchedSources": [
+    {
+      "id": "s1",
+      "url": "https://support.airtable.com/articles/6811769763-third-party-integrations-via-oauth-overview",
+      "authority": "provider",
+      "contentHash": "cb9bff5a0d39708b7771b4726160dd3bf9f9f0a3665eabc961398c02d42cb511",
+      "characters": 7975
+    },
+    {
+      "id": "s2",
+      "url": "https://support.airtable.com/articles/9362950318-using-builder-hub-in-airtable",
+      "authority": "provider",
+      "contentHash": "47a60a51e68a5a7f7f34e264ca6535d296ca7bd55e156cddc4df0e03f44caf48",
+      "characters": 4888
+    },
+    {
+      "id": "s3",
+      "url": "https://airtable.com/developers/agents/mcp/getting-started",
+      "authority": "provider",
+      "contentHash": "ee2c00c4dad0da2993455c6cbafd403b1f3e3693d83498752fa4ac4f9b516bba",
+      "characters": 5350
+    },
+    {
+      "id": "c1",
+      "url": "https://docs.composio.dev/toolkits/managed-auth",
+      "authority": "composio",
+      "contentHash": "1a03d6b66b2976b728048ab69a1a8b22dc9b5493e856d9a27a2a51da2abf904b",
+      "characters": 14000
+    },
+    {
+      "id": "c2",
+      "url": "https://docs.composio.dev/docs/authentication/custom-app-vs-managed-app",
+      "authority": "composio",
+      "contentHash": "9483798d6b68945e7391aaf12355c9464211d3bca1168253744f09eac4e4e303",
+      "characters": 12325
+    },
+    {
+      "id": "s4",
+      "url": "https://community.airtable.com/development-apis-11/oauth-application-6995",
+      "authority": "third_party",
+      "contentHash": "3e99bf16e946796bf16e33efcbcdc602831cf3531dac92abd50def3db1cc8d52",
+      "characters": 5397
+    },
+    {
+      "id": "s5",
+      "url": "https://support.airtable.com/articles/5478596596-salesforce-connected-apps-security-update",
+      "authority": "provider",
+      "contentHash": "25f97a4254772a5307cb358bedeb117b490ea1b10ca672f6da97982cd99d25cd",
+      "characters": 5436
+    },
+    {
+      "id": "s6",
+      "url": "https://www.airtable.com/company/trust-and-security",
+      "authority": "provider",
+      "contentHash": "c6f8db573a9f1115441102816eb293600c1f207ebae1042b071810718742534e",
+      "characters": 6074
+    }
+  ],
+  "classifications": {
+    "oauth": "unknown",
+    "managed": "unknown",
+    "approval": "unknown"
+  },
+  "semanticAcceptance": "Partial only: see the independent material-claim audit in docs/research-audit.md. No automatic semantic verification is claimed."
+}

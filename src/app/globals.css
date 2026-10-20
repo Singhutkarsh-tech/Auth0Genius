@@ -3067,3 +3067,5 @@ p {
     font-size: 13px;
   }
 }
+/* Evidence support and route state retain the existing workspace surfaces. */
+.claim-passages{margin-top:8px;font-size:11px;color:#716477}.claim-passages summary{cursor:pointer}.claim-passages blockquote{margin:8px 0;padding:10px 12px;border-left:2px solid #d6c5e4;background:#f7f3fa}.source-card details{font-size:11px;color:#716477;overflow-wrap:anywhere}.research-disclosure,.research-limit-note{color:#716477}.auth-option[aria-pressed=true]{border-color:#b29cc5}.route-stage small{color:#81718d}

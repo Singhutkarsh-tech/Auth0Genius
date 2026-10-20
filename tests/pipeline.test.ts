@@ -1,11 +1,17 @@
 import { beforeAll, afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { execFileSync } from 'node:child_process';
-import { unlinkSync, existsSync } from 'node:fs';
-const mocks = vi.hoisted(() => {
-  process.env.DATABASE_URL = `file:/tmp/auth0genius-pipeline-${process.pid}.db`;
+import { rmSync } from 'node:fs';
+const mocks = await vi.hoisted(async () => {
+  const fs = await import('node:fs');
+  const os = await import('node:os');
+  const path = await import('node:path');
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'a0g-pipeline-'));
+  const file = path.join(directory, 'test.db');
+  fs.writeFileSync(file, '');
+  process.env.DATABASE_URL = `file:${file}`;
   process.env.OPENAI_API_KEY = 'test-not-a-real-key';
   process.env.TAVILY_API_KEY = 'test-not-a-real-key';
-  return { search: vi.fn(), retrieve: vi.fn(), identify: vi.fn(), synthesize: vi.fn() };
+  return { search: vi.fn(), retrieve: vi.fn(), identify: vi.fn(), synthesize: vi.fn(), directory };
 });
 vi.mock('@/lib/research/retrieval', async () => {
   const actual = await vi.importActual<typeof import('@/lib/research/retrieval')>(
@@ -44,8 +50,7 @@ beforeAll(() => {
 });
 afterAll(async () => {
   await db.$disconnect();
-  const path = process.env.DATABASE_URL!.slice(5);
-  if (existsSync(path)) unlinkSync(path);
+  rmSync(mocks.directory, { recursive: true, force: true });
 });
 beforeEach(async () => {
   vi.clearAllMocks();
@@ -67,7 +72,7 @@ beforeEach(async () => {
 async function newJob() {
   return db.researchJob.create({
     data: {
-      query: 'Pipeline fixture',
+      query: 'GitHub pipeline fixture',
       normalizedProvider: 'pipeline-fixture',
       completedStages: [],
       context: { sources: [], attempted: [] },
@@ -89,9 +94,24 @@ describe('Research engine with mocked search and LLM, real SQLite persistence', 
     const saved = await db.guide.findFirstOrThrow({ include: { provider: true, sources: true } });
     expect(saved.provider.slug).toBe('pipeline-fixture');
     expect(saved.sources).toHaveLength(guide.sources.length);
-    expect(saved.content).toMatchObject({ slug: 'pipeline-fixture', status: 'sourced' });
+    expect(saved.content).toMatchObject({
+      slug: 'pipeline-fixture',
+      status: 'partial',
+      oauthStatus: 'unknown',
+    });
     await advanceJob(job.id);
     expect(mocks.synthesize).toHaveBeenCalledTimes(1);
+  });
+  it('uses one bounded identity fallback when discovery returns unrelated aggregators', async () => {
+    mocks.search.mockResolvedValueOnce([
+      { title: 'Wiki', url: 'https://en.wikipedia.org/wiki/GitHub', content: '' },
+    ]);
+    const job = await newJob();
+    expect((await advanceJob(job.id)).outcome).toBe('advanced');
+    expect(mocks.search).toHaveBeenCalledTimes(2);
+    expect(mocks.identify.mock.calls[0][1]).toEqual([
+      { title: 'GitHub OAuth', url: guide.website, content: 'Official docs' },
+    ]);
   });
   it('preserves featured status, known aliases and the trusted logo when refreshing a seeded provider', async () => {
     const { saveGuide } = await import('@/lib/db/guides');
@@ -140,6 +160,78 @@ describe('Research engine with mocked search and LLM, real SQLite persistence', 
     });
     await advanceJob(job.id);
     expect(mocks.search).not.toHaveBeenCalled();
+  });
+  it('returns retry metadata for an active lease, then reclaims it after expiry', async () => {
+    const job = await newJob();
+    await db.researchJob.update({
+      where: { id: job.id },
+      data: { status: 'running', leaseUntil: new Date(Date.now() + 5000) },
+    });
+    const refused = await advanceJob(job.id);
+    expect(refused.claimed).toBe(false);
+    expect(refused.outcome).toBe('leased');
+    expect(refused.retryAfterMs).toBeGreaterThan(0);
+    await db.researchJob.update({
+      where: { id: job.id },
+      data: { leaseUntil: new Date(Date.now() - 1) },
+    });
+    expect((await advanceJob(job.id)).outcome).toBe('advanced');
+    expect(mocks.search).toHaveBeenCalledTimes(1);
+  });
+  it('prevents two requests from executing a stage concurrently', async () => {
+    let release!: (result: unknown[]) => void;
+    const pending = new Promise<unknown[]>((resolve) => (release = resolve));
+    mocks.search.mockReturnValueOnce(pending);
+    const job = await newJob();
+    const first = advanceJob(job.id);
+    await vi.waitFor(() => expect(mocks.search).toHaveBeenCalledTimes(1));
+    const second = await advanceJob(job.id);
+    expect(second.outcome).toBe('leased');
+    release([{ title: 'GitHub', url: guide.website, content: 'Official provider' }]);
+    await first;
+    expect(mocks.search).toHaveBeenCalledTimes(1);
+    expect((await db.researchJob.findUniqueOrThrow({ where: { id: job.id } })).currentStage).toBe(
+      1,
+    );
+  });
+  it('fences a stale worker after a different request reclaims the expired lease', async () => {
+    let release!: (result: unknown[]) => void;
+    mocks.search.mockReturnValueOnce(new Promise((resolve) => (release = resolve)));
+    const job = await newJob();
+    const stale = advanceJob(job.id);
+    await vi.waitFor(() => expect(mocks.search).toHaveBeenCalledTimes(1));
+    await db.researchJob.update({
+      where: { id: job.id },
+      data: { leaseUntil: new Date(Date.now() - 1) },
+    });
+    await advanceJob(job.id);
+    release([{ title: 'GitHub', url: guide.website, content: 'Official provider' }]);
+    expect((await stale).outcome).toBe('superseded');
+    const saved = await db.researchJob.findUniqueOrThrow({ where: { id: job.id } });
+    expect(saved.currentStage).toBe(1);
+    expect(saved.completedStages).toEqual([0]);
+  });
+  it('rolls back publication if completion is interrupted and retries idempotently', async () => {
+    const job = await newJob();
+    for (let i = 0; i < 6; i++) await advanceJob(job.id);
+    await db.$executeRawUnsafe(
+      "CREATE TRIGGER interrupt_publication BEFORE UPDATE ON ResearchJob WHEN NEW.status = 'completed' BEGIN SELECT RAISE(ABORT, 'simulated completion interruption'); END;",
+    );
+    try {
+      expect((await advanceJob(job.id)).outcome).toBe('retry');
+      expect(await db.guide.count()).toBe(0);
+      expect((await db.researchJob.findUniqueOrThrow({ where: { id: job.id } })).status).toBe(
+        'running',
+      );
+    } finally {
+      await db.$executeRawUnsafe('DROP TRIGGER interrupt_publication');
+    }
+    await advanceJob(job.id);
+    const done = await db.researchJob.findUniqueOrThrow({ where: { id: job.id } });
+    expect(done.status).toBe('completed');
+    expect(done.outputGuideId).toBe(`research-${job.id}`);
+    await advanceJob(job.id);
+    expect(await db.guide.count()).toBe(1);
   });
   it('reuses an active normalized provider request', async () => {
     const req = () =>

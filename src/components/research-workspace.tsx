@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -15,17 +15,7 @@ import {
 } from 'lucide-react';
 import { researchStages } from '@/lib/research/state';
 import { Badge } from './ui';
-type Job = {
-  id: string;
-  query: string;
-  status: 'queued' | 'running' | 'completed' | 'failed';
-  currentStage: number;
-  completedStages: number[];
-  error: string | null;
-  outputUrl: string | null;
-  attempted: string[];
-  sources: { id: string; title: string; url: string; type: string }[];
-};
+import { startResearchLoop, type PublicJob as Job } from '@/lib/research/client';
 export function ResearchWorkspace({
   jobId,
   initialQuery = '',
@@ -43,29 +33,7 @@ export function ResearchWorkspace({
   const [error, setError] = useState('');
   const [job, setJob] = useState<Job | null>(null);
   const [running, setRunning] = useState(false);
-  const active = useRef(false);
-  const jobStatus = job?.status;
-  const jobStage = job?.currentStage;
-  useEffect(() => {
-    if (jobId === 'new') return;
-    let cancelled = false;
-    async function poll() {
-      try {
-        const response = await fetch(`/api/research/${jobId}`, { cache: 'no-store' });
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error?.message ?? 'Could not load research');
-        if (!cancelled) setJob(data);
-      } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : 'Research unavailable');
-      }
-    }
-    poll();
-    const interval = setInterval(poll, 2500);
-    return () => {
-      cancelled = true;
-      clearInterval(interval);
-    };
-  }, [jobId]);
+
   // Restore the optional deployment access code after hydration.
   /* eslint-disable react-hooks/set-state-in-effect -- Session storage is restored once after server rendering. */
   useEffect(() => {
@@ -77,41 +45,15 @@ export function ResearchWorkspace({
   }, [jobId]);
   /* eslint-enable react-hooks/set-state-in-effect */
   useEffect(() => {
-    if (
-      !jobStatus ||
-      ['completed', 'failed'].includes(jobStatus) ||
-      active.current ||
-      (protectedResearch && !accessCode)
-    )
-      return;
-    let cancelled = false;
-    const run = async () => {
-      active.current = true;
-      setRunning(true);
-      try {
-        const response = await fetch(`/api/research/${jobId}`, {
-          method: 'POST',
-          headers: { 'x-research-access-code': accessCode },
-        });
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error?.message ?? 'Research interrupted');
-        if (!cancelled) {
-          setJob(data);
-          setError('');
-        }
-      } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : 'Research interrupted');
-      } finally {
-        active.current = false;
-        if (!cancelled) setRunning(false);
-      }
-    };
-    const timeout = setTimeout(run, 600);
-    return () => {
-      cancelled = true;
-      clearTimeout(timeout);
-    };
-  }, [jobStage, jobStatus, jobId, accessCode, protectedResearch]);
+    if (jobId === 'new' || (protectedResearch && !accessCode)) return;
+    return startResearchLoop({
+      jobId,
+      accessCode,
+      onJob: setJob,
+      onError: setError,
+      onRunning: setRunning,
+    });
+  }, [jobId, accessCode, protectedResearch]);
   useEffect(() => {
     if (job?.status === 'completed' && job.outputUrl) {
       const timer = setTimeout(() => router.push(job.outputUrl!), 1800);
@@ -250,7 +192,9 @@ export function ResearchWorkspace({
                             : current
                               ? running
                                 ? 'Working on this stage'
-                                : 'Ready to continue'
+                                : job.execution && !job.execution.claimable
+                                  ? 'Waiting for execution lease; retrying automatically'
+                                  : 'Ready to continue'
                               : 'Waiting for previous stage'}
                         </small>
                       </div>

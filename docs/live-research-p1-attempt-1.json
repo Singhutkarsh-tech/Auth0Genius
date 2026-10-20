@@ -1,0 +1,25 @@
+{
+  "input": "Airtable",
+  "startedAt": "2026-10-20T07:11:45.723Z",
+  "outcome": "failed",
+  "fresh": true,
+  "stages": [
+    {
+      "status": "queued",
+      "stage": 0,
+      "completedStages": []
+    },
+    {
+      "status": "failed",
+      "stage": 0,
+      "completedStages": []
+    }
+  ],
+  "sourceUrls": [],
+  "attempted": [
+    "Searched for provider identity and official developer documentation"
+  ],
+  "jobId": "cmvgchrs50000y6khfh81busc",
+  "model": "gpt-4.1-mini",
+  "error": "Provider identity was not supported by search results"
+}

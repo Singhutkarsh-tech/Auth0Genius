@@ -3,8 +3,8 @@ const checked = '2026-10-20T04:47:19.000Z';
 const c = (
   text: string,
   sourceIds: string[] = [],
-  status: Claim['status'] = sourceIds.length ? 'verified' : 'unverified',
-): Claim => ({ text, sourceIds, status });
+  status: Claim['status'] = 'unverified',
+): Claim => ({ text, sourceIds, status, support: null });
 const source = (id: string, title: string, url: string, summary: string): Source => ({
   id,
   title,
@@ -13,6 +13,15 @@ const source = (id: string, title: string, url: string, summary: string): Source
   domain: new URL(url).hostname,
   type: 'official',
   accessedAt: checked,
+  authority: new URL(url).hostname === 'docs.composio.dev' ? 'composio' : 'provider',
+  topics:
+    new URL(url).hostname === 'docs.composio.dev'
+      ? ['managed_auth', 'setup', 'general']
+      : ['oauth', 'scopes', 'setup', 'approval', 'general'],
+  capture: 'review_summary',
+  content: null,
+  originalUrl: url,
+  contentHash: null,
 });
 const composio = source(
   'composio',
@@ -24,7 +33,35 @@ const callback = source(
   'callback',
   'Composio: custom auth configuration',
   'https://docs.composio.dev/docs/auth-configuration/custom-auth-configs',
-  'The registered provider redirect URI must match oauth_redirect_uri in the active auth config. A v3 callback is documented; some defaults still use a supported v1 callback.',
+  'The registered provider redirect URI must match oauth_redirect_uri in the active auth config. The documented v3 URI is https://backend.composio.dev/api/v3/toolkits/auth/callback; some defaults still use a supported v1 callback.',
+);
+const reviewed = (
+  text: string,
+  sourceIds: string[],
+  topic: NonNullable<Claim['support']>['topic'],
+  conclusion: string,
+  sources: Source[],
+  status: Claim['status'] = 'verified',
+): Claim => ({
+  text,
+  status,
+  sourceIds,
+  support: {
+    topic,
+    conclusion,
+    review: 'reviewed',
+    reviewedText: text,
+    references: sourceIds.map((id) => ({
+      sourceId: id,
+      passage: sources.find((s) => s.id === id)!.summary,
+    })),
+  },
+});
+const authentication = source(
+  'composio-connection',
+  'Composio: per-user connections',
+  'https://docs.composio.dev/docs/authentication',
+  'A session returns a Connect Link; the user authorizes with the provider and Composio creates the connected account. Test tool actions against the correct user connection.',
 );
 type Spec = {
   slug: string;
@@ -642,6 +679,7 @@ export const seedGuides: Guide[] = specs.map((s) => {
     ...(s.extra ?? []),
     composio,
     callback,
+    authentication,
   ];
   const featured = ['gmail', 'slack', 'github'].includes(s.slug);
   const policy = s.approvalSource ?? 'provider';
@@ -658,9 +696,19 @@ export const seedGuides: Guide[] = specs.map((s) => {
           : 'provider',
     ]),
     stage,
+    routes: ['custom'],
     owner: stage === 'Configure' ? 'Shared' : 'Human',
-    url: sources.find((src) => src.id === (s.slug === 'slack' && index >= 4 ? policy : 'provider'))!
-      .url,
+    url: sources.find(
+      (src) =>
+        src.id ===
+        (s.slug === 'gmail' && [1, 2, 3].includes(index)
+          ? index === 2
+            ? 'google-consent'
+            : 'google-client'
+          : (s.slug === 'github' && index === 4) || (s.slug === 'slack' && index >= 4)
+            ? policy
+            : 'provider'),
+    )!.url,
     note: null,
     effort: null,
     blocker: stage === 'Verify' ? s.blocker : null,
@@ -677,12 +725,65 @@ export const seedGuides: Guide[] = specs.map((s) => {
       ),
       owner: 'Human',
       stage: 'Configure',
+      routes: ['custom'],
       url: 'https://docs.composio.dev/docs/authentication/custom-app-vs-managed-app',
       note: 'Never paste client secrets or tokens into Auth0Genius.',
       effort: null,
       blocker: null,
     },
   );
+  if (featured) {
+    const managedSteps: [string, string, Guide['steps'][number]['stage'], string][] = [
+      [
+        'Confirm managed scopes in Composio',
+        'Compare your agent actions with the toolkit’s managed scopes. Choose custom OAuth only if the documented defaults do not fit.',
+        'Configure',
+        'composio',
+      ],
+      [
+        'Set up a managed end-user connection',
+        'Create a Composio session for a stable user ID and request a Connect Link for this toolkit. The end user authorizes at the provider.',
+        'Configure',
+        'composio-connection',
+      ],
+      [
+        'Test the managed connection',
+        'Run a safe, narrowly scoped action through the connected account and confirm its actual result. Checking this item does not run the test.',
+        'Test',
+        'composio-connection',
+      ],
+      [
+        'Check provider and workspace policies',
+        'Confirm the provider’s policies and any workspace or organization administrator restrictions for the intended users. Managed credentials do not prove your launch is approved.',
+        'Verify',
+        policy,
+      ],
+      [
+        'Confirm the managed route fits your launch',
+        'Confirm actual connection results, scope coverage, branding and quota needs. Switch deliberately to custom OAuth if you need your own app.',
+        'Launch',
+        'composio',
+      ],
+    ];
+    for (const [index, [title, detail, stage, id]] of managedSteps.entries())
+      steps.push({
+        id: `${s.slug}-managed-${index + 1}`,
+        title,
+        detail: c(detail, [id]),
+        owner: 'Human',
+        stage,
+        routes: ['managed'],
+        url: sources.find((src) => src.id === id)!.url,
+        note: null,
+        effort: null,
+        blocker: null,
+      });
+  }
+  const approvalUnknown = ['salesforce', 'hubspot', 'dropbox', 'linear'].includes(s.slug);
+  const approvalClaim =
+    s.slug === 'github'
+      ? 'Organization restrictions can require owner approval for organization data.'
+      : s.approval;
   return validateEvidence({
     slug: s.slug,
     name: s.name,
@@ -695,12 +796,21 @@ export const seedGuides: Guide[] = specs.map((s) => {
     version: 1,
     status: featured ? 'sourced' : 'partial',
     oauthStatus: 'supported',
-    oauthEvidence: c('OAuth support is documented by the provider.', ['provider']),
+    oauthEvidence: reviewed(
+      'OAuth support is documented by the provider.',
+      ['provider'],
+      'oauth',
+      'supported',
+      sources,
+    ),
     managedAuth: featured ? 'available' : 'unknown',
     managedEvidence: featured
-      ? c(
+      ? reviewed(
           'Composio documents managed OAuth for this toolkit. Confirm that its default scopes fit your use case.',
           ['composio'],
+          'managed_auth',
+          'available',
+          sources,
         )
       : c(
           'Provider-specific managed OAuth availability was not established. Check the current Composio toolkit dashboard before registering a custom app.',
@@ -711,6 +821,9 @@ export const seedGuides: Guide[] = specs.map((s) => {
     approval: ['salesforce', 'hubspot', 'dropbox', 'linear'].includes(s.slug)
       ? 'unknown'
       : 'conditional',
+    approvalEvidence: approvalUnknown
+      ? c(s.approval, [policy])
+      : reviewed(approvalClaim, [policy], 'approval', 'conditional', sources),
     approvalTime: c('Timeline not established for this route'),
     mainBlocker: c(s.blocker, [policy]),
     prerequisites: [
@@ -755,6 +868,22 @@ export const seedGuides: Guide[] = specs.map((s) => {
       'Exact approval wait for your app and scope set.',
       'Your account eligibility, chosen scopes, and actual provider approval outcome.',
     ],
+    stageExemptions: featured
+      ? [
+          {
+            route: 'managed',
+            stage: 'Register',
+            reason: reviewed(
+              'Composio-managed authentication does not require registering your own provider OAuth app.',
+              ['composio'],
+              'managed_auth',
+              'not_applicable',
+              sources,
+              'not_applicable',
+            ),
+          },
+        ]
+      : [],
     sources,
     generatedAt: checked,
     checkedAt: checked,

@@ -1,4 +1,5 @@
 import type { Guide } from './validation';
+import { applicableSteps, type AuthRoute } from './workspace';
 export function normalize(input: string): string {
   const value = input.trim().toLowerCase();
   if (/^https?:\/\//.test(value) || /^[\w.-]+\.[a-z]{2,}(?:\/.*)?$/.test(value)) {
@@ -25,16 +26,12 @@ export const approvalLabel = (status: Guide['approval']) =>
   })[status];
 export const difficultyTone = (value: Guide['difficulty']) =>
   ({ Easy: 'green', Moderate: 'amber', Complex: 'purple', Unknown: 'neutral' })[value];
-export function nextAction(
-  guide: Guide,
-  completed: string[],
-  route: 'managed' | 'custom' = 'custom',
-) {
+export function nextAction(guide: Guide, completed: string[], route: AuthRoute = 'custom') {
   if (guide.oauthStatus !== 'supported')
     return { title: 'Verify OAuth support before proceeding', href: '#evidence' };
-  if (route === 'managed' && guide.managedAuth === 'available' && !completed.length)
-    return { title: 'Confirm managed scopes in Composio', href: '#auth-route' };
-  const step = guide.steps.find((s) => !completed.includes(s.id));
+  if (route === 'managed' && guide.managedAuth !== 'available')
+    return { title: 'Check managed authentication availability', href: '#auth-route' };
+  const step = applicableSteps(guide, route).find((s) => !completed.includes(s.id));
   return step
     ? { title: step.title, href: `#step-${step.id}` }
     : { title: 'Review your production readiness', href: '#approval' };
@@ -44,9 +41,15 @@ export function launchState(
   stage: string,
   completed: string[],
   blocked: string[] = [],
+  route: AuthRoute = 'custom',
 ) {
-  const steps = guide.steps.filter((s) => s.stage === stage);
-  if (!steps.length) return 'Not applicable';
+  const steps = applicableSteps(guide, route).filter((s) => s.stage === stage);
+  if (!steps.length)
+    return guide.stageExemptions.some(
+      (e) => e.route === route && e.stage === stage && e.reason.status === 'not_applicable',
+    )
+      ? 'Not applicable'
+      : 'Not researched';
   if (steps.some((s) => blocked.includes(s.id))) return 'Blocked';
   if (steps.every((s) => completed.includes(s.id))) return 'Completed by user';
   if (steps.some((s) => completed.includes(s.id))) return 'In progress';

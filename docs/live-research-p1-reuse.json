@@ -1,0 +1,11 @@
+{
+  "input": "Airtable",
+  "startedAt": "2026-10-20T07:55:51.562Z",
+  "outcome": "reused",
+  "fresh": false,
+  "stages": [],
+  "sourceUrls": [],
+  "attempted": [],
+  "outputUrl": "http://localhost:3185/providers/airtable",
+  "error": "Existing guide found. No fresh research was performed."
+}

@@ -50,6 +50,7 @@ describe('Guide and evidence validation', () => {
   });
   it('rejects claims marked verified without a source', () => {
     const g = structuredClone(gmail);
+    g.mainBlocker.status = 'verified';
     g.mainBlocker.sourceIds = [];
     expect(() => validateEvidence(g)).toThrow('require evidence');
   });
@@ -81,7 +82,7 @@ describe('Guide and evidence validation', () => {
 });
 describe('Launch decisions', () => {
   it('recommends checking managed auth when that route is selected', () =>
-    expect(nextAction(gmail, [], 'managed').href).toBe('#auth-route'));
+    expect(nextAction(gmail, [], 'managed').href).toBe(`#step-${gmail.slug}-managed-1`));
   it('recommends the first incomplete step', () => {
     const completed = [gmail.steps[0].id];
     expect(nextAction(gmail, completed).href).toBe(`#step-${gmail.steps[1].id}`);
@@ -113,7 +114,7 @@ describe('Launch decisions', () => {
         'Launch',
         [],
       ),
-    ).toBe('Not applicable');
+    ).toBe('Not researched');
   });
   it('keeps unknown and conditional approval distinct', () => {
     expect(approvalLabel('unknown')).toBe('Approval unknown');

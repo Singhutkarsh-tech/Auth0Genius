@@ -15,7 +15,7 @@ export function EvidenceBadge({ status }: { status: Claim['status'] }) {
       {status === 'verified' ? <Check size={11} /> : <CircleHelp size={11} />}
       {
         {
-          verified: 'Source-backed',
+          verified: 'Reviewed source support',
           estimated: 'Estimated',
           unverified: 'Unverified',
           not_applicable: 'Not applicable',
@@ -52,6 +52,23 @@ export function ClaimText({ claim }: { claim: Claim }) {
           </a>
         ))}
       </div>
+      {claim.support && (
+        <details className="claim-passages">
+          <summary>
+            {claim.support.review === 'reviewed'
+              ? 'Reviewed evidence summary'
+              : 'Supporting passages · semantic review unresolved'}
+          </summary>
+          {claim.support.references.map((ref, i) => (
+            <blockquote key={i}>
+              <p>{ref.passage}</p>
+              <a className="citation" href={`#source-${ref.sourceId}`}>
+                [{ref.sourceId}]
+              </a>
+            </blockquote>
+          ))}
+        </details>
+      )}
     </div>
   );
 }

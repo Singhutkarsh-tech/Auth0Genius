@@ -1,0 +1,66 @@
+[
+  {
+    "device": "desktop",
+    "provider": "gmail",
+    "route": "managed",
+    "checkboxes": 5,
+    "nextAction": "Confirm managed scopes in Composio",
+    "fits": true
+  },
+  {
+    "device": "desktop",
+    "provider": "slack",
+    "route": "managed",
+    "checkboxes": 5,
+    "nextAction": "Confirm managed scopes in Composio",
+    "fits": true
+  },
+  {
+    "device": "desktop",
+    "provider": "github",
+    "route": "managed",
+    "checkboxes": 5,
+    "nextAction": "Confirm managed scopes in Composio",
+    "fits": true
+  },
+  {
+    "device": "desktop",
+    "provider": "linear",
+    "route": "managed",
+    "checkboxes": 1,
+    "nextAction": "Check managed authentication availability",
+    "fits": true
+  },
+  {
+    "device": "mobile",
+    "provider": "gmail",
+    "route": "managed",
+    "checkboxes": 5,
+    "nextAction": "Confirm managed scopes in Composio",
+    "fits": true
+  },
+  {
+    "device": "mobile",
+    "provider": "slack",
+    "route": "managed",
+    "checkboxes": 5,
+    "nextAction": "Confirm managed scopes in Composio",
+    "fits": true
+  },
+  {
+    "device": "mobile",
+    "provider": "github",
+    "route": "managed",
+    "checkboxes": 5,
+    "nextAction": "Confirm managed scopes in Composio",
+    "fits": true
+  },
+  {
+    "device": "mobile",
+    "provider": "linear",
+    "route": "managed",
+    "checkboxes": 1,
+    "nextAction": "Check managed authentication availability",
+    "fits": true
+  }
+]

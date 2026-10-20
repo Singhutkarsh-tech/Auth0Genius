@@ -1,0 +1,92 @@
+{
+  "input": "Airtable",
+  "startedAt": "2026-10-20T07:17:11.147Z",
+  "outcome": "failed",
+  "fresh": true,
+  "stages": [
+    {
+      "status": "queued",
+      "stage": 0,
+      "completedStages": []
+    },
+    {
+      "status": "running",
+      "stage": 1,
+      "completedStages": [
+        0
+      ]
+    },
+    {
+      "status": "running",
+      "stage": 2,
+      "completedStages": [
+        0,
+        1
+      ]
+    },
+    {
+      "status": "running",
+      "stage": 3,
+      "completedStages": [
+        0,
+        1,
+        2
+      ]
+    },
+    {
+      "status": "running",
+      "stage": 4,
+      "completedStages": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "status": "failed",
+      "stage": 4,
+      "completedStages": [
+        0,
+        1,
+        2,
+        3
+      ]
+    }
+  ],
+  "sourceUrls": [
+    "https://en.wikipedia.org/wiki/Airtable",
+    "https://leadiq.com/c/airtable/5a1d9d7123000053008d49c1",
+    "https://composio.dev/auth/airtable",
+    "https://support.airtable.com/articles/6811769763-third-party-integrations-via-oauth-overview",
+    "https://developer.transmitsecurity.com/guides/automated-workflows/integrations/builtin/credentials/airtable",
+    "https://docs.composio.dev/toolkits/managed-auth",
+    "https://docs.composio.dev/docs/authentication/custom-app-vs-managed-app",
+    "https://help.gohighlevel.com/support/solutions/articles/155000005002-api-security-oauth-consent-for-marketplace-apps",
+    "https://developer.atlassian.com/platform/marketplace/marketplace-security-enforcement-policy/"
+  ],
+  "attempted": [
+    "Searched for provider identity and official developer documentation",
+    "Discovery URLs (not verified evidence): https://en.wikipedia.org/wiki/Airtable, https://leadiq.com/c/airtable/5a1d9d7123000053008d49c1, https://leadiq.com/c/switchboard/619d84d0b861d1aa196ce8b9, https://leadiq.com/c/dopt/619d84d0b861d1aa196ce8b9, https://www.linkedin.com/company/airtable",
+    "Selected observed provider identity origin: https://en.wikipedia.org",
+    "Retrieved https://en.wikipedia.org/wiki/Airtable (10691 readable characters)",
+    "Retrieved https://leadiq.com/c/airtable/5a1d9d7123000053008d49c1 (8700 readable characters)",
+    "Searched for OAuth capability evidence",
+    "Retrieved https://composio.dev/auth/airtable (3154 readable characters)",
+    "Retrieved https://support.airtable.com/articles/6811769763-third-party-integrations-via-oauth-overview (7975 readable characters)",
+    "Searched for registration, scopes and redirect documentation",
+    "Could not retrieve https://apps.make.com/airtable: Documentation exceeds size limit",
+    "Retrieved https://developer.transmitsecurity.com/guides/automated-workflows/integrations/builtin/credentials/airtable (1915 readable characters)",
+    "Checked Composio documentation for managed versus custom authentication",
+    "Retrieved https://docs.composio.dev/toolkits/managed-auth (14000 readable characters)",
+    "Retrieved https://docs.composio.dev/docs/authentication/custom-app-vs-managed-app (12325 readable characters)",
+    "Searched official-domain review and distribution requirements",
+    "Retrieved https://help.gohighlevel.com/support/solutions/articles/155000005002-api-security-oauth-consent-for-marketplace-apps (6432 readable characters)",
+    "Could not retrieve https://www.youtube.com/watch?v=KSyXoiZ3MLg: Documentation exceeds size limit",
+    "Retrieved https://developer.atlassian.com/platform/marketplace/marketplace-security-enforcement-policy/ (14000 readable characters)",
+    "Compared retrieved evidence and synthesized a structured guide using OpenAI"
+  ],
+  "jobId": "cmvgcoqvn0000y6ahah7zi2ad",
+  "model": "gpt-4.1-mini",
+  "error": "400 Invalid schema for response_format 'oauth_launch_guide': In context=('properties', 'website'), 'uri' is not a valid format."
+}
