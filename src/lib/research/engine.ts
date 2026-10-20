@@ -210,6 +210,9 @@ export async function advanceJob(id: string): Promise<ExecutionResult> {
             },
           });
           return true;
+        }, {
+          maxWait: 10000,
+          timeout: 15000,
         });
         return {
           claimed: true,
@@ -240,18 +243,7 @@ export async function advanceJob(id: string): Promise<ExecutionResult> {
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Research failed';
     console.error('Research stage failed:', sanitizeResearchError(message));
-    if (job.currentStage === 6) {
-      const released = await db.researchJob.updateMany({
-        where: fence,
-        data: { leaseUntil: null, error: 'Publication interrupted; retrying the same saved job.' },
-      });
-      return {
-        claimed: true,
-        outcome: released.count ? 'retry' : 'superseded',
-        leaseUntil: null,
-        retryAfterMs: 1000,
-      };
-    }
+
     const failed = await db.researchJob.updateMany({
       where: fence,
       data: {

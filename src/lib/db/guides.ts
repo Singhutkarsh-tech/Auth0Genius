@@ -85,9 +85,9 @@ export async function saveGuide(
       },
     });
     await tx.evidenceSource.deleteMany({ where: { guideId: record.id } });
-    for (const s of guide.sources)
-      await tx.evidenceSource.create({
-        data: {
+    if (guide.sources.length > 0) {
+      await tx.evidenceSource.createMany({
+        data: guide.sources.map((s) => ({
           guideId: record.id,
           sourceId: s.id,
           title: s.title,
@@ -96,8 +96,9 @@ export async function saveGuide(
           sourceType: s.type,
           accessedAt: new Date(s.accessedAt),
           summary: s.summary,
-        },
+        })),
       });
+    }
     return { id: record.id, slug: provider.slug };
   };
   return options.tx ? write(options.tx) : db.$transaction(write);
