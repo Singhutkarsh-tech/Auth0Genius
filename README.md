@@ -8,7 +8,6 @@ Auth0Genius helps AI agent developers using Composio turn a provider name into a
 
 An independent Composio product concept and working proof of concept.
 
-![Auth0Genius integration launchpad](docs/screenshots/home-desktop.png)
 
 ## The problem
 
