@@ -3069,3 +3069,205 @@ p {
 }
 /* Evidence support and route state retain the existing workspace surfaces. */
 .claim-passages{margin-top:8px;font-size:11px;color:#716477}.claim-passages summary{cursor:pointer}.claim-passages blockquote{margin:8px 0;padding:10px 12px;border-left:2px solid #d6c5e4;background:#f7f3fa}.source-card details{font-size:11px;color:#716477;overflow-wrap:anywhere}.research-disclosure,.research-limit-note{color:#716477}.auth-option[aria-pressed=true]{border-color:#b29cc5}.route-stage small{color:#81718d}
+
+/* A0G — High Contrast Design Refresh */
+
+:root {
+  --bg: #f3f3f7;
+  --surface: #ffffff;
+  --ink: #171722;
+  --muted: #535568;
+  --line: #c9c9d5;
+  --accent: #5937c8;
+  --accent-dark: #4525a8;
+  --purple-light: #e9e3fc;
+  --green: #176c45;
+  --shadow: 0 4px 16px #21174710;
+}
+
+body {
+  color: var(--ink);
+}
+
+p,
+.small-note,
+.guide-content .small-note,
+.guide-content p,
+.step-body p,
+.detail-block p,
+.troubleshoot p,
+.source-card p,
+.ownership-card p,
+.auth-detail p {
+  color: #48485b !important;
+}
+
+.site-header {
+  background: #fffffffa;
+  border-bottom-color: #cccbd6;
+}
+
+.nav-links,
+.nav-links a {
+  color: #363344;
+}
+
+.hero {
+  background: linear-gradient(120deg, #f8f7fd, #eeebf9);
+}
+
+.hero h1 > span {
+  color: #5937c8;
+}
+
+.hero-description,
+.hero-eyebrow,
+.eyebrow,
+.hero-assurances,
+.hero-bottom,
+.hero-suggestions {
+  color: #51475e;
+}
+
+.hero-search,
+.research-form,
+.research-job,
+.featured-card,
+.search-results {
+  border-color: #c5c2d0;
+}
+
+.hero-search input::placeholder {
+  color: #656071;
+}
+
+.featured-card:hover {
+  border-color: #7455d1;
+  box-shadow: 0 10px 30px #33226a17;
+}
+
+.badge {
+  color: #51475d;
+  border-color: #c9c3d2;
+}
+
+.badge-purple {
+  color: #59329b;
+  border-color: #baabe1;
+  background: #efe9fc;
+}
+
+.badge-green {
+  color: #17683d;
+  border-color: #a5d1b4;
+  background: #e8f6ec;
+}
+
+.badge-amber {
+  color: #8b4c12;
+  border-color: #e2bc8b;
+  background: #fff3e1;
+}
+
+.card-facts,
+.card-bottom,
+.table-header,
+.provider-cell small,
+.approval-cell,
+.row-action,
+.guide-meta,
+.guide-heading p,
+.guide-sidebar nav > a {
+  color: #52475d;
+}
+
+.guide-content .citation,
+.guide-content code,
+.source-card .text-link,
+.text-link {
+  color: #5632ad;
+}
+
+/* Research progress — clear, readable states */
+
+.job-heading strong {
+  color: #512b91;
+  font-size: 15px;
+}
+
+.job-heading span {
+  color: #675878;
+}
+
+.research-stage {
+  color: #606073;
+}
+
+.research-stage > span {
+  border-color: #c4bfd0;
+}
+
+.research-stage strong {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.research-stage small {
+  font-size: 11px;
+}
+
+.research-stage.done {
+  color: #17683d;
+}
+
+.research-stage.done > span {
+  border-color: #8cc5a5;
+  background: #e7f5eb;
+}
+
+.research-stage.active {
+  color: #5631aa;
+}
+
+.research-stage.active > span {
+  background: #ebe4fc;
+  border-color: #8066c9;
+}
+
+.research-error {
+  background: #fff0e8;
+  border-color: #e3a887;
+  color: #9c421e;
+}
+
+.research-error strong,
+.research-error p {
+  color: #913b1d;
+}
+
+.research-disclosure,
+.research-log-list,
+.research-limit-note {
+  color: #514360;
+}
+
+.research-complete {
+  color: #17683d;
+  border-color: #9fceb0;
+}
+
+.research-complete p {
+  color: #236644;
+}
+
+/* Stronger controls and focus states */
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 3px solid #7751d9;
+  outline-offset: 3px;
+}
+
