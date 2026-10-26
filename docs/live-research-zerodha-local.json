@@ -1,0 +1,147 @@
+{
+  "input": "Zerodha",
+  "startedAt": "2026-10-26T13:09:25.043Z",
+  "outcome": "generated_pending_semantic_review",
+  "fresh": true,
+  "stages": [
+    {
+      "status": "queued",
+      "stage": 0,
+      "completedStages": []
+    },
+    {
+      "status": "running",
+      "stage": 1,
+      "completedStages": [
+        0
+      ]
+    },
+    {
+      "status": "running",
+      "stage": 2,
+      "completedStages": [
+        0,
+        1
+      ]
+    },
+    {
+      "status": "running",
+      "stage": 3,
+      "completedStages": [
+        0,
+        1,
+        2
+      ]
+    },
+    {
+      "status": "running",
+      "stage": 4,
+      "completedStages": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "status": "running",
+      "stage": 5,
+      "completedStages": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ]
+    },
+    {
+      "status": "running",
+      "stage": 6,
+      "completedStages": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ]
+    },
+    {
+      "status": "completed",
+      "stage": 7,
+      "completedStages": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ]
+    }
+  ],
+  "sourceUrls": [
+    "https://zerodha.com/products",
+    "https://kite.trade/docs/connect/v3/user/",
+    "https://kite.trade/docs/connect/v3/agent-setup/",
+    "https://kite.trade/docs/connect/v3/",
+    "https://support.zerodha.com/category/trading-and-markets/general-kite/kite-api/articles/how-do-i-sign-up-for-kite-connect",
+    "https://docs.composio.dev/toolkits/managed-auth",
+    "https://docs.composio.dev/docs/authentication/custom-app-vs-managed-app",
+    "https://zerodha.com/z-connect/featured/connect-your-zerodha-account-to-ai-assistants-with-kite-mcp",
+    "https://zerodha.com/z-connect/kite/mandatory-totp-for-illiquid-risky-contracts",
+    "https://kite.trade/forum/categories/api-clients"
+  ],
+  "attempted": [
+    "Searched for provider identity and official developer documentation",
+    "Discovery URLs (not verified evidence): https://zerodha.com/products",
+    "Selected observed provider identity origin: https://zerodha.com",
+    "Retrieved https://zerodha.com/products (1836 readable characters)",
+    "Searched for OAuth capability evidence",
+    "Retrieved https://kite.trade/docs/connect/v3/user/ (9309 readable characters)",
+    "Retrieved https://kite.trade/docs/connect/v3/agent-setup/ (2961 readable characters)",
+    "Searched for registration, scopes and redirect documentation",
+    "Retrieved https://kite.trade/docs/connect/v3/ (1993 readable characters)",
+    "Retrieved https://support.zerodha.com/category/trading-and-markets/general-kite/kite-api/articles/how-do-i-sign-up-for-kite-connect (3807 readable characters)",
+    "Checked Composio documentation for managed versus custom authentication",
+    "Retrieved https://docs.composio.dev/toolkits/managed-auth (14000 readable characters)",
+    "Retrieved https://docs.composio.dev/docs/authentication/custom-app-vs-managed-app (13950 readable characters)",
+    "Searched official-domain review and distribution requirements",
+    "Retrieved https://zerodha.com/z-connect/featured/connect-your-zerodha-account-to-ai-assistants-with-kite-mcp (7785 readable characters)",
+    "Retrieved https://zerodha.com/z-connect/kite/mandatory-totp-for-illiquid-risky-contracts (4800 readable characters)",
+    "Retrieved https://kite.trade/forum/categories/api-clients (12004 readable characters)",
+    "Compared retrieved evidence and synthesized a structured guide using OpenAI",
+    "Validated guide schema, source references and retrieved destination URLs"
+  ],
+  "jobId": "cmvp9wtvn0000y6ou23xwciek",
+  "model": "gpt-4.1-mini",
+  "outputUrl": "http://127.0.0.1:3183/providers/zerodha",
+  "claims": [
+    {
+      "topic": "oauth",
+      "classification": "supported",
+      "text": "Provider documentation explicitly identifies an OAuth-style authorization flow.",
+      "status": "verified",
+      "passages": [
+        {
+          "sourceId": "s3",
+          "passage": "OAuth-style"
+        }
+      ]
+    },
+    {
+      "topic": "managed_auth",
+      "classification": "unknown",
+      "text": "Managed availability remains unverified. Unreviewed interpretation: No source evidence found that Composio provides managed OAuth apps for Zerodha/Kite Connect. Only custom OAuth-like proprietary is documented in official Zerodha docs and they require app registration on Zerodha developer portal.",
+      "status": "unverified",
+      "passages": []
+    },
+    {
+      "topic": "approval",
+      "classification": "unknown",
+      "text": "Provider app review requirements remain unknown for this application and distribution route.",
+      "status": "unverified",
+      "passages": []
+    }
+  ]
+}

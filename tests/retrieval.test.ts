@@ -12,9 +12,35 @@ vi.mock('@/lib/research/network', async () => {
   };
 });
 import { fetchDocument } from '@/lib/research/network';
-import { retrieve, identityCandidates } from '@/lib/research/retrieval';
+import { retrieve, identityCandidates, providerDomains, providerReferenceResults } from '@/lib/research/retrieval';
 import { resolveIdentityOrigin } from '@/lib/research/synthesis';
 describe('Retained retrieval provenance', () => {
+  it('retrieves Kite Connect docs as official provider references for Zerodha', async () => {
+    expect(providerDomains('https://zerodha.com')).toEqual([
+      'zerodha.com',
+      'kite.trade',
+      'support.zerodha.com',
+    ]);
+    const references = providerReferenceResults('zerodha.com', 'authentication');
+    expect(references.map((item) => item.url)).toContain(
+      'https://kite.trade/docs/connect/v3/agent-setup/',
+    );
+    const reference = providerReferenceResults('https://www.zerodha.com', 'authentication')[0];
+    expect(providerReferenceResults('https://kite.trade', 'authentication')).toEqual(references);
+    expect(reference?.url).toBe('https://kite.trade/docs/connect/v3/user/');
+    vi.mocked(fetchDocument).mockResolvedValueOnce({
+      url: reference!.url,
+      title: 'Kite Connect user authentication',
+      text: 'OAuth-style login returns a request_token to the registered redirect URL and exchanges it with a checksum made using api_secret.',
+    });
+    const result = await retrieve([reference!], 'zerodha.com');
+    expect(result.sources[0]).toMatchObject({ authority: 'provider', type: 'official', capture: 'fetched' });
+    expect(result.sources[0].topics).toContain('oauth');
+    expect(result.sources[0].content).toContain('request_token');
+  });
+  it('does not offer curated provider docs for unrelated domains', () => {
+    expect(providerReferenceResults('https://example.com', 'authentication')).toEqual([]);
+  });
   it('does not confer provider authority on community-authored pages', async () => {
     vi.mocked(fetchDocument).mockResolvedValueOnce({
       url: 'https://community.slack.com/oauth',

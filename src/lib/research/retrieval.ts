@@ -8,9 +8,55 @@ const searchSchema = z.object({
 });
 export type SearchResult = z.infer<typeof searchSchema>['results'][number];
 export type Retrieved = Source & { text: string };
+type ReferenceStage = 'authentication' | 'setup';
+// Kite Connect's official API docs live on kite.trade, separate from Zerodha's homepage.
+// These URLs are still fetched and validated before they can become evidence.
+const kiteConnectReferences: Partial<Record<ReferenceStage, SearchResult[]>> = {
+  authentication: [
+    {
+      title: 'Kite Connect: user login and token exchange',
+      url: 'https://kite.trade/docs/connect/v3/user/',
+      content: '',
+    },
+    {
+      title: 'Kite Connect: agent authentication setup',
+      url: 'https://kite.trade/docs/connect/v3/agent-setup/',
+      content: '',
+    },
+  ],
+  setup: [
+    {
+      title: 'Kite Connect: API overview and developer setup',
+      url: 'https://kite.trade/docs/connect/v3/',
+      content: '',
+    },
+  ],
+};
+const officialDeveloperDocs: Record<string, Partial<Record<ReferenceStage, SearchResult[]>>> = {
+  zerodha: kiteConnectReferences,
+  'zerodha.com': kiteConnectReferences,
+  'kite.trade': kiteConnectReferences,
+};
+export function providerReferenceResults(homepage: string, stage: ReferenceStage) {
+  let host: string;
+  try {
+    host = normalizeProviderDomain(
+      new URL(homepage.includes('://') ? homepage : `https://${homepage}`).hostname,
+    );
+  } catch {
+    return [];
+  }
+  return officialDeveloperDocs[host]?.[stage] ?? [];
+}
 // Reviewed ownership mappings; an LLM-supplied host is never added to this list.
 export function providerDomains(homepage: string) {
-  const host = homepage.replace(/^www\./, '');
+  let hostname = homepage;
+  try {
+    hostname = new URL(homepage.includes('://') ? homepage : `https://${homepage}`).hostname;
+  } catch {
+    /* Keep a hostname input; invalid values simply have no special mapping. */
+  }
+  const host = normalizeProviderDomain(hostname.replace(/^www\./, ''));
   const mappings: Record<string, string[]> = {
     'gmail.com': ['developers.google.com', 'support.google.com'],
     'slack.com': ['docs.slack.dev', 'api.slack.com'],
@@ -22,6 +68,8 @@ export function providerDomains(homepage: string) {
     'github.com': ['docs.github.com'],
     'zoom.us': ['developers.zoom.us'],
     'hubspot.com': ['developers.hubspot.com'],
+    'zerodha.com': ['kite.trade', 'support.zerodha.com'],
+    'kite.trade': ['zerodha.com', 'support.zerodha.com'],
   };
   return [host, ...(mappings[host] ?? [])];
 }

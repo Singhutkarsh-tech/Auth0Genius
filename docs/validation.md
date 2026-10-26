@@ -173,3 +173,21 @@ The result resolved Steam to **Valve Corporation** at `store.steampowered.com`, 
 | Production guide persistence | **Passed for current deployment** | Completed job read back through production API and guide opened from stable URL. Persistence through a subsequent deployment is still unverified. |
 | User-facing error root cause | **Identified** | Research creation caught the missing-column database exception and returned the generic storage-unavailable message. |
 | Remaining release check | **Open** | Redeploy after the next repository release, then reopen the Steam URL and confirm it remains available. |
+
+## Zerodha/Kite Connect correction — 26 October 2026
+
+The historical protocol regression note above is now reflected in the actual guide pipeline. Tavily discovery is supplemented with bounded official Kite Connect documentation references for both the Zerodha homepage and `kite.trade`. All references are fetched through the SSRF-safe retrieval path; only the resulting official fetched text can establish a provider claim. The structured synthesis prompt distinguishes an OAuth-style proprietary handshake from standard OAuth 2.0 and keeps compliance requirements use-case-specific.
+
+When the official Kite user, agent setup, and API overview text are present, deterministic reconciliation builds a Kite Connect checklist from retained passages: create the provider app and redirect URL; receive the `request_token`; exchange it with the provider-specific checksum on the server; then test API requests. It keeps Composio compatibility, managed auth, and provider approval unknown. It also separates conditional trading compliance from OAuth app approval. Without the expected official evidence, this targeted playbook does not activate and the generic partial/unknown guard remains.
+
+| Check | Result |
+| --- | --- |
+| `npm run typecheck` | Passed |
+| `npm run lint` | Passed with no warnings |
+| `npm test` | **135 passed** across 9 files |
+| `npm run build` | Passed; all App Router routes compiled |
+| Fresh local Zerodha live research | Passed: fresh job `cmvp9wtvn0000y6ou23xwciek`, stages 0–6 completed, 10 sources retained, guide saved at `http://127.0.0.1:3183/providers/zerodha`; no Zerodha account credentials used |
+| Guide output | OAuth-style support documented; mechanism `oauth_like_proprietary`; Composio availability and approval unknown; provider-specific checklist present; no account connection attempted |
+| Browser smoke suite | **19 passed, 2 failed**. Existing failures: Google Mail alias submit did not navigate to Gmail; abandoned-lease error-banner assertion did not render the expected key name. The direct Figma, mobile, route switching, guide/share, and other research regressions passed. |
+| Local browser guide review | Passed on a freshly opened Chrome tab against the built app. The guide shows the OAuth-like proprietary mechanism, an unknown managed-auth status, unknown approval/timing, and an explicit Composio compatibility blocker. Managed route shows 1 availability-check step; switching to custom shows 7 route-specific steps, including Verify and Launch. All seven are user-reported; nothing is marked complete automatically. |
+| Production Zerodha guide | **Not yet refreshed**. After deployment, submit one fresh Zerodha research request with a short use-case description to bypass saved-guide reuse, then check the new version at `/providers/zerodha`. The production guide has not been overwritten by local testing. |

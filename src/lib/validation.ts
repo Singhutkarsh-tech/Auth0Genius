@@ -283,7 +283,8 @@ export function downgradeUnreviewed(input: unknown): Guide {
   guide.status = 'partial';
   if (
     guide.provenance.method === 'live_research' &&
-    (guide.oauthStatus === 'unknown' || guide.managedAuth === 'unknown')
+    (guide.oauthStatus === 'unknown' || guide.managedAuth === 'unknown') &&
+    guide.authenticationType === 'unverified'
   )
     guide.description =
       'Partial provider research. Review retained sources before choosing an authentication route.';

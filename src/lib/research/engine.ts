@@ -6,6 +6,7 @@ import {
   searchWeb,
   retrieve,
   providerDomains,
+  providerReferenceResults,
   identityCandidates,
   providerDomain,
   type Retrieved,
@@ -206,21 +207,41 @@ export async function advanceJob(
         break;
       }
       case 1: {
-        const found = await searchWeb(
-          `${context.identity!.name} OAuth authorization scopes`,
-          providerDomains(context.domain!),
-        );
-        const got = await retrieve(found.slice(0, 2), context.domain!, context.sources);
+        let found: SearchResult[] = [];
+        try {
+          found = await searchWeb(
+            `${context.identity!.name} API authentication login flow authorization scopes`,
+            providerDomains(context.domain!),
+          );
+        } catch (error) {
+          if (!providerReferenceResults(context.domain!, 'authentication').length) throw error;
+          context.attempted.push('Search unavailable; checking the configured official authentication documentation');
+        }
+        const candidates = [
+          ...providerReferenceResults(context.domain!, 'authentication'),
+          ...found,
+        ].filter((item, index, all) => all.findIndex((candidate) => candidate.url === item.url) === index);
+        const got = await retrieve(candidates.slice(0, 2), context.domain!, context.sources);
         context.sources.push(...got.sources);
         context.attempted.push('Searched for OAuth capability evidence', ...got.attempts);
         break;
       }
       case 2: {
-        const found = await searchWeb(
-          `${context.identity!.name} official developer register OAuth app redirect URI scopes documentation`,
-          providerDomains(context.domain!),
-        );
-        const got = await retrieve(found.slice(0, 2), context.domain!, context.sources);
+        let found: SearchResult[] = [];
+        try {
+          found = await searchWeb(
+            `${context.identity!.name} official developer app registration credentials redirect URL authentication documentation`,
+            providerDomains(context.domain!),
+          );
+        } catch (error) {
+          if (!providerReferenceResults(context.domain!, 'setup').length) throw error;
+          context.attempted.push('Search unavailable; checking the configured official setup documentation');
+        }
+        const candidates = [
+          ...providerReferenceResults(context.domain!, 'setup'),
+          ...found,
+        ].filter((item, index, all) => all.findIndex((candidate) => candidate.url === item.url) === index);
+        const got = await retrieve(candidates.slice(0, 2), context.domain!, context.sources);
         context.sources.push(...got.sources);
         context.attempted.push(
           'Searched for registration, scopes and redirect documentation',
