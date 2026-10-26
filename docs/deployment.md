@@ -2,7 +2,7 @@
 
 Supabase hosts the PostgreSQL database; Vercel runs the Next.js application and its research API. No Supabase Auth, Storage, browser database client, or Supabase API key is required by this application.
 
-This is a deployment procedure, not a record of a completed hosted deployment. The local application and real research result have been validated; hosted PostgreSQL and Vercel still need the checks below.
+The production app is deployed at [auth0-genius.vercel.app](https://auth0-genius.vercel.app/) and uses Supabase PostgreSQL. A production schema drift incident and its recovery are recorded in `docs/validation.md`. The steps below remain the procedure for a new environment and for future schema changes.
 
 ## 1. Create the Supabase database
 
@@ -50,7 +50,7 @@ The first command selects `prisma/schema.postgres.prisma`, creates the tables, a
 
 The current schema uses `DATABASE_URL`; a `DIRECT_URL` variable alone is not read by this repository. Setup and Vercel intentionally receive different `DATABASE_URL` values.
 
-`db:production` currently uses Prisma `db push` without destructive acceptance flags. For subsequent production schema changes, introduce reviewed migration files and use `prisma migrate deploy`; do not apply destructive schema changes automatically during every Vercel build.
+`db:production` currently uses Prisma `db push` without destructive acceptance flags. Vercel's normal build only generates the Prisma client; it does **not** synchronize the production schema. After every Prisma schema change, apply the matching reviewed production schema update before deploying application code that reads or writes the new fields. Do not apply destructive schema changes automatically during every Vercel build. The idempotent SQL patch in `prisma/manual-migrations/20261026_add_researchjob_retry_count.sql` records the additive production repair made on 26 October 2026. For future changes, use reviewed migration files and apply them deliberately.
 
 The local Airtable result is in an ignored SQLite review database. It is not copied by seeding and will not appear in Supabase unless deliberately migrated. You can instead create a fresh research result on the deployed application.
 
@@ -112,4 +112,4 @@ A page displaying fallback seeds does not prove that the database is connected. 
 
 For command-line evidence, point `NEXT_PUBLIC_APP_URL` at the deployed origin and run `npm run research:live -- "Unfamiliar provider" --report docs/live-research-production.json` from a trusted environment with the research access code configured. Cached reuse is not fresh generation.
 
-Record the actual deployed URL and hosted validation results in `docs/validation.md` after these checks pass.
+Hosted checks completed so far are recorded in `docs/validation.md`. Persistence through a subsequent deployment should still be confirmed after the next code release.

@@ -151,3 +151,25 @@ The local seed library remains at ten providers and three featured integrations.
 | Guide recommendation and visual usability | **Passed locally** | Unverified setup steps send the next action to evidence; desktop and 390px mobile browser checks pass. |
 | Demo access and spend limits | **Implemented; production setting not checked here** | `RESEARCH_PUBLIC_ACCESS=true` removes the hidden-code prompt while persistent limits remain 10 starts/day globally and 2/IP/day. Confirm this Vercel Production setting before sharing the public demo, or share the configured access code with evaluators. |
 | Supabase/Vercel release | **Pending** | No production code or environment change was made in this pass. Apply/migrate the schema for `retryCount`, deploy this commit, and verify a guide remains after a production restart before calling hosted durability accepted. |
+
+## Production recovery — 26 October 2026
+
+The earlier “Supabase/Vercel release pending” status above is a historical checkpoint and is superseded by this production follow-up. At approximately 15:18 local time, the deployed research form returned “Research storage is unavailable.” Supabase PostgreSQL logs identified SQLSTATE `42703`: `column ResearchJob.retryCount does not exist`. The application’s generated Prisma client and schema expected the field, but the hosted table had not been synchronized. This was a database schema drift issue, not a Steam-specific research failure.
+
+Applied the additive, idempotent repair recorded in [20261026_add_researchjob_retry_count.sql](../prisma/manual-migrations/20261026_add_researchjob_retry_count.sql): add `retryCount INTEGER NOT NULL DEFAULT 0` if absent. Supabase reported success, and the `ResearchJob` table showed the new `int4` column with existing rows set to `0`. No existing rows were deleted. The Vercel build does not apply Prisma schema changes, so future schema edits must be deliberately applied before shipping code that relies on them; see [deployment instructions](deployment.md).
+
+### Fresh production research
+
+After the repair, submitted **Steam** through the deployed research experience. This was a fresh job, not a cached guide, seed, mocked response, or local fixture. Production job `cmvp7t2350000l1074t2qba0z` completed stages 0–6 (terminal stage 7), retrieved 10 sources, and saved a shareable guide. A subsequent production API read returned the completed job, and the guide opened at [https://auth0-genius.vercel.app/providers/steam](https://auth0-genius.vercel.app/providers/steam). Safe run evidence, including sources, is in [live-research-steam-production.json](live-research-steam-production.json).
+
+The result resolved Steam to **Valve Corporation** at `store.steampowered.com`, but it is correctly marked **partial**. Retrieved Steam pages identified Valve/Steam but did not establish that Steam exposes an OAuth flow for the intended integration, nor app registration, scopes, or approval. Composio sources explained managed/custom authentication but did not confirm Steam managed-auth availability. OAuth support, mechanism, managed auth, approval, and timing remain unknown/unverified. The guide therefore recommends verifying OAuth support and contains no fabricated OAuth registration instructions. The ten-source count and completed technical pipeline demonstrate retrieval and persistence, not semantic support for each OAuth claim. Persistence across a later production deployment remains to be checked.
+
+### Release status update
+
+| Requirement | Current status | Evidence / limit |
+| --- | --- | --- |
+| Production database schema | **Recovered** | `ResearchJob.retryCount` added and confirmed in Supabase after the logged `42703` failure. |
+| Fresh unfamiliar-provider production run | **Passed technically; partial guide** | Steam research completed with 10 fetched sources and a saved URL; OAuth itself was not verified. |
+| Production guide persistence | **Passed for current deployment** | Completed job read back through production API and guide opened from stable URL. Persistence through a subsequent deployment is still unverified. |
+| User-facing error root cause | **Identified** | Research creation caught the missing-column database exception and returned the generic storage-unavailable message. |
+| Remaining release check | **Open** | Redeploy after the next repository release, then reopen the Steam URL and confirm it remains available. |

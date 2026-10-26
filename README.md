@@ -57,5 +57,5 @@ The recorded local validation and real-provider research results are in [docs/va
 - Provider policies, scopes, managed-auth availability, and approval requirements can change. Confirm account-specific requirements with the provider before launch; some guide fields intentionally remain unknown.
 - Checklist state is local to the browser and is user-reported, not confirmation that external setup is complete.
 - Live research is a bounded, browser-driven workflow; closing all research tabs can pause it between stages.
-- The deployed experience and saved guides are reachable. The recorded fresh Figma research was run locally; a fresh unfamiliar-provider generation and persistence after a production redeploy are not claimed as verified by that run.
+- The deployed experience and saved guides are reachable. A fresh Steam research job completed against production and its saved partial guide is available at [auth0-genius.vercel.app/providers/steam](https://auth0-genius.vercel.app/providers/steam). OAuth support remains unknown because retrieved Steam pages did not establish an OAuth flow. Persistence across the next production deployment has not yet been rechecked.
 - This proof of concept has no accounts, billing, credential vault, or OAuth token handling.

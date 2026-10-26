@@ -1,0 +1,42 @@
+{
+  "checkedAt": "2026-10-26",
+  "environment": "production",
+  "input": "Steam",
+  "freshGeneration": true,
+  "reuse": false,
+  "jobId": "cmvp7t2350000l1074t2qba0z",
+  "status": "completed",
+  "completedStages": [0, 1, 2, 3, 4, 5, 6],
+  "terminalStage": 7,
+  "resolvedIdentity": {
+    "name": "Valve Corporation",
+    "website": "https://store.steampowered.com"
+  },
+  "sourceCount": 10,
+  "sourceUrls": [
+    "https://store.steampowered.com/hardware",
+    "https://store.steampowered.com/subscriber_agreement/",
+    "https://store.steampowered.com/app/4464930/",
+    "https://store.steampowered.com/developer/valve",
+    "https://store.steampowered.com/developer/valve/about",
+    "https://store.steampowered.com/app/2362290/",
+    "https://store.steampowered.com/app/2153630/",
+    "https://store.steampowered.com/app/2289080/",
+    "https://docs.composio.dev/toolkits/managed-auth",
+    "https://docs.composio.dev/docs/authentication/custom-app-vs-managed-app"
+  ],
+  "guideUrl": "https://auth0-genius.vercel.app/providers/steam",
+  "guideClassification": {
+    "status": "partial",
+    "oauthSupport": "unknown",
+    "authenticationMechanism": "unverified",
+    "managedAuth": "unknown",
+    "approval": "unknown"
+  },
+  "limitations": [
+    "The retrieved Steam pages identify Valve/Steam but do not establish a Steam API OAuth flow, scopes, or provider app-registration process.",
+    "The Composio sources document managed/custom concepts but do not confirm a Steam managed-auth configuration.",
+    "Approval requirements and timing remain unknown; no OAuth setup instructions were fabricated."
+  ],
+  "productionPersistence": "The job was read back from the production research API and its saved guide opened at the stable provider URL. Persistence after a subsequent deployment is not yet verified."
+}
