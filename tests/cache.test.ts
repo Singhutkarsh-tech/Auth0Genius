@@ -1,0 +1,30 @@
+import { beforeAll, afterAll, expect, it, vi } from 'vitest';
+import { execFileSync } from 'node:child_process';
+import { rmSync } from 'node:fs';
+const fixture = await vi.hoisted(async () => {
+  const fs = await import('node:fs');
+  const directory = fs.mkdtempSync('/tmp/a0g-cache-');
+  fs.writeFileSync(`${directory}/test.db`, '');
+  process.env.DATABASE_URL = `file:${directory}/test.db`;
+  return { directory, network: vi.fn() };
+});
+vi.mock('@/lib/research/network', async () => ({ ...await vi.importActual('@/lib/research/network'), fetchDocument: fixture.network }));
+import { db } from '@/lib/db';
+import { publicDocument } from '@/lib/research/documents';
+beforeAll(() => { execFileSync(process.execPath, ['node_modules/prisma/build/index.js', 'db', 'push', '--schema', 'prisma/schema.prisma', '--skip-generate'], { env: process.env, stdio: 'pipe' }); });
+afterAll(async () => { await db.$disconnect(); rmSync(fixture.directory, { recursive: true, force: true }); });
+it('reuses a fresh public capture with its original fetch time; explicit refresh and expiry fetch again', async () => {
+  fixture.network.mockResolvedValue({ url: 'https://docs.example.com/oauth', title: 'Example OAuth', text: 'Example supports OAuth 2.0 authorization code for third-party applications.' });
+  const first = await publicDocument('https://docs.example.com/oauth');
+  const cached = await publicDocument('https://docs.example.com/oauth');
+  expect(cached.cacheStatus).toBe('hit');
+  expect(cached.fetchedAt).toBe(first.fetchedAt);
+  expect(fixture.network).toHaveBeenCalledTimes(1);
+  await publicDocument('https://docs.example.com/oauth', true);
+  expect(fixture.network).toHaveBeenCalledTimes(2);
+  await db.publicDocument.update({ where: { url: 'https://docs.example.com/oauth' }, data: { expiresAt: new Date(0) } });
+  expect((await publicDocument('https://docs.example.com/oauth')).cacheStatus).toBe('miss');
+  expect(fixture.network).toHaveBeenCalledTimes(3);
+  await expect(publicDocument('https://127.0.0.1/private')).rejects.toThrow('public HTTPS');
+  expect(fixture.network).toHaveBeenCalledTimes(3);
+});

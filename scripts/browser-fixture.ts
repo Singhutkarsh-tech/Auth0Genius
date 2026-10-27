@@ -1,9 +1,9 @@
 import './env';
-import { seedGuides } from '../src/data/seed-providers';
 import { saveGuide } from '../src/lib/db/guides';
 import { db } from '../src/lib/db';
 import { liveGuide } from '../tests/helpers/live-guide';
 async function main() {
+  if (!process.env.A0G_OWNED_TEST_DIRECTORY || process.env.DATABASE_URL !== process.env.PLAYWRIGHT_TEST_DATABASE_URL || !process.env.DATABASE_URL?.startsWith('file:')) throw new Error('Browser fixtures require the owned isolated SQLite database.');
   if (process.argv[2] === 'lease') {
     const job = await db.researchJob.create({
       data: {
@@ -38,16 +38,10 @@ async function main() {
     await db.provider.deleteMany({ where: { slug: 'e2e-generated-fixture' } });
     return;
   }
-  const guide = structuredClone(seedGuides[2]);
+  const guide = liveGuide();
   guide.slug = 'e2e-generated-fixture';
   guide.name = 'Generated fixture';
-  guide.featured = false;
-  guide.steps[0].detail.status = 'unverified';
-  guide.provenance = {
-    method: 'live_research',
-    attempted: ['Deterministic browser test fixture; no live research claimed.'],
-    limitations: ['Fixture only. Deleted after browser tests.'],
-  };
+  guide.provenance.attempted = ['Deterministic synthetic browser fixture; no live research claimed.'];
   await saveGuide(guide);
 }
 main().finally(() => db.$disconnect());

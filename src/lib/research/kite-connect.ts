@@ -13,7 +13,7 @@ const reviewedStep = (
   support: {
     topic,
     conclusion: 'documented',
-    review: 'reviewed',
+    review: 'rule_checked',
     reviewedText: text,
     references: [{ sourceId: source.id, passage }],
   },
@@ -242,17 +242,9 @@ export function applyKiteConnectGuide(guide: Guide, sources: Retrieved[]): Guide
     'Confirm Kite Connect account eligibility and current API plan with Zerodha.',
     'Keep the provider API secret on your server; never enter it in Auth0Genius.',
   ];
-  guide.humanResponsibilities = [
-    'Confirm API-plan and account eligibility in the Zerodha console.',
-    'Register the Kite Connect application and redirect URL if proceeding.',
-    'Keep the API secret and user tokens in your own server-side secret store.',
-    'Test the account connection and verify any use-case-specific trading obligations.',
-  ];
-  guide.agentResponsibilities = [
-    'Retrieve and summarize public Kite Connect authentication and setup documentation.',
-    'Explain the request_token/checksum exchange and identify unresolved Composio compatibility.',
-    'Keep provider application review and trading compliance as separate questions.',
-  ];
+  guide.humanResponsibilities = ['Own account login, permissions, credentials, and observed test results.'];
+  guide.agentResponsibilities = ['Investigate public documentation and retain source evidence.'];
+  guide.responsibilityEvidence = steps.filter((step) => step.detail.status === 'verified').map((step) => ({ owner: 'Human', detail: step.detail }));
   guide.unknowns = [
     'Whether Composio managed auth or a custom auth config supports Kite Connect’s proprietary token exchange.',
     'The exact Kite Connect plan and account eligibility for this developer.',

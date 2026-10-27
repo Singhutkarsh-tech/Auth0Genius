@@ -58,6 +58,16 @@ export async function saveGuide(
       aliases,
       featured: provider.featured,
       logo: provider.logo,
+      provenance: {
+        ...guide.provenance,
+        ...(latest && guide.provenance.method === 'live_research' ? {
+          previousVersion: latest.version,
+          evidenceChanges: guide.sources.map((source) => {
+            const prior = (latest.content as unknown as Guide).sources?.find((s) => s.url === source.url);
+            return `${prior ? prior.contentHash === source.contentHash ? 'Retained' : 'Updated capture' : 'Added'}: ${source.url}`;
+          }),
+        } : {}),
+      },
     };
     const record = await tx.guide.upsert({
       where: { providerId_version: { providerId: provider.id, version } },
@@ -135,7 +145,7 @@ export async function listGuides(): Promise<Guide[]> {
   } catch (error) {
     console.error(
       'Saved guide storage unavailable:',
-      error instanceof Error ? error.message : 'database error',
+      error && typeof error === 'object' && 'code' in error ? String(error.code) : 'database error',
     );
     return seedGuides;
   }

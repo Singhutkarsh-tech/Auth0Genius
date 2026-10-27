@@ -71,3 +71,9 @@ model ResearchQuota {
   count Int @default(1)
   expiresAt DateTime
 }
+model PublicDocument {
+  url String @id
+  capture Json
+  fetchedAt DateTime @default(now())
+  expiresAt DateTime
+}

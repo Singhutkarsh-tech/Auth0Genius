@@ -20,10 +20,14 @@ export function ResearchWorkspace({
   jobId,
   initialQuery = '',
   protectedResearch = false,
+  initialProviderSlug,
+  refresh = false,
 }: {
   jobId: string;
   initialQuery?: string;
   protectedResearch?: boolean;
+  initialProviderSlug?: string;
+  refresh?: boolean;
 }) {
   const router = useRouter();
   const [query, setQuery] = useState(initialQuery);
@@ -71,7 +75,7 @@ export function ResearchWorkspace({
       const response = await fetch('/api/research', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query, useCase: useCase || undefined, accessCode }),
+        body: JSON.stringify({ query, useCase: useCase || undefined, accessCode, selectedProviderSlug: initialProviderSlug, refresh }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error?.message ?? 'Could not start research');
@@ -129,6 +133,7 @@ export function ResearchWorkspace({
       </div>
       {jobId === 'new' ? (
         <form className="research-form" onSubmit={submit}>
+          {refresh && <p className="small-note">Fresh investigation for this selected provider. Existing guide versions and local progress are preserved.</p>}
           <label htmlFor="provider-query">Provider name or official website</label>
           <input
             id="provider-query"
@@ -196,7 +201,7 @@ export function ResearchWorkspace({
                   </span>
                 </div>
                 <Badge tone={job.status === 'failed' || job.status === 'blocked' ? 'amber' : 'purple'}>
-                  {job.status === 'running' ? 'Researching' : job.status}
+                  {job.status === 'blocked' ? 'Awaiting provider selection' : job.status === 'running' ? 'Researching' : job.status}
                 </Badge>
               </div>
               {job.status === 'blocked' && (

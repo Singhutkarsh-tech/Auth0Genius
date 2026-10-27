@@ -1,0 +1,230 @@
+{
+  "input": "Airtable",
+  "startedAt": "2026-10-27T07:58:56.939Z",
+  "outcome": "generated_pending_semantic_review",
+  "fresh": true,
+  "stages": [
+    {
+      "status": "queued",
+      "stage": 0,
+      "completedStages": []
+    },
+    {
+      "status": "blocked",
+      "stage": 0,
+      "completedStages": []
+    },
+    {
+      "status": "running",
+      "stage": 1,
+      "completedStages": [
+        0
+      ]
+    },
+    {
+      "status": "running",
+      "stage": 2,
+      "completedStages": [
+        0,
+        1
+      ]
+    },
+    {
+      "status": "running",
+      "stage": 3,
+      "completedStages": [
+        0,
+        1,
+        2
+      ]
+    },
+    {
+      "status": "running",
+      "stage": 4,
+      "completedStages": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "status": "running",
+      "stage": 5,
+      "completedStages": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ]
+    },
+    {
+      "status": "running",
+      "stage": 6,
+      "completedStages": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ]
+    },
+    {
+      "status": "completed",
+      "stage": 7,
+      "completedStages": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ]
+    }
+  ],
+  "sourceUrls": [
+    "https://www.airtable.com/",
+    "https://airtable.com/developers/agents/mcp/getting-started",
+    "https://airtable.com/developers/web/api/introduction",
+    "https://support.airtable.com/articles/9362950318-using-builder-hub-in-airtable",
+    "https://docs.composio.dev/toolkits/airtable.md",
+    "https://docs.composio.dev/docs/authentication",
+    "https://support.airtable.com/articles/6811769763-third-party-integrations-via-oauth-overview",
+    "https://airtable.com/developers/agents/mcp/controls"
+  ],
+  "attempted": [
+    "Discovered provider candidates from public page evidence. No OAuth research has started.",
+    "User confirmed provider identity: Airtable (https://airtable.com). Selection establishes intent, not OAuth capability.",
+    "Searched for oauth: Airtable official developer API OAuth authentication third-party access authorization reference",
+    "Retrieved https://airtable.com/developers/agents/mcp/getting-started (6499 readable characters; fetched 2026-10-27T07:59:03.357Z)",
+    "Reused fresh public document capture https://airtable.com/developers/web/api/introduction (762 readable characters; fetched 2026-10-27T07:54:50.503Z)",
+    "Searched for setup: Airtable official register OAuth integration application developer hub redirect URL client ID",
+    "Searched for managed_auth: Airtable Composio toolkit authentication managed OAuth available",
+    "Searched for scopes: Airtable official API OAuth scopes permissions prerequisites",
+    "Retrieved https://support.airtable.com/articles/9362950318-using-builder-hub-in-airtable (4888 readable characters; fetched 2026-10-27T07:59:09.078Z)",
+    "Reused fresh public document capture https://docs.composio.dev/toolkits/airtable.md (14000 readable characters; fetched 2026-10-27T07:54:50.830Z)",
+    "Reused fresh public document capture https://docs.composio.dev/docs/authentication (14000 readable characters; fetched 2026-10-27T07:54:50.985Z)",
+    "Searched for approval: Airtable official OAuth integration external users distribution app review requirements privacy policy",
+    "Coverage gap: oauth. Attempting bounded targeted recovery.",
+    "Focused fallback for oauth: Airtable OAuth reference authorization third-party integrations API access site:airtable.com",
+    "Reused fresh public document capture https://support.airtable.com/articles/6811769763-third-party-integrations-via-oauth-overview (7975 readable characters; fetched 2026-10-27T07:54:45.373Z)",
+    "Retrieved https://airtable.com/developers/agents/mcp/controls (5323 readable characters; fetched 2026-10-27T07:59:15.263Z)",
+    "Evidence coverage gate: all required topics have relevant official evidence; claim interpretation still checked separately.",
+    "Compared retrieved evidence and synthesized a structured guide using OpenAI",
+    "Validated guide schema, source references and retrieved destination URLs"
+  ],
+  "jobId": "cmvqe9fcp0009y6v0z3ikiuhh",
+  "model": "gpt-4.1-mini",
+  "metrics": {
+    "searches": 7,
+    "fetches": 4,
+    "cacheHits": 6,
+    "stages": [
+      {
+        "stage": 0,
+        "durationMs": 2531,
+        "outcome": "awaiting_provider_selection"
+      },
+      {
+        "stage": 0,
+        "durationMs": 0,
+        "outcome": "completed"
+      },
+      {
+        "stage": 1,
+        "durationMs": 3204,
+        "outcome": "completed"
+      },
+      {
+        "stage": 2,
+        "durationMs": 5703,
+        "outcome": "completed"
+      },
+      {
+        "stage": 3,
+        "durationMs": 6165,
+        "outcome": "completed"
+      },
+      {
+        "stage": 4,
+        "durationMs": 4458,
+        "outcome": "completed"
+      },
+      {
+        "stage": 5,
+        "durationMs": 1,
+        "outcome": "completed"
+      },
+      {
+        "stage": 6,
+        "durationMs": 16,
+        "outcome": "completed"
+      }
+    ],
+    "documentReads": 10,
+    "model": {
+      "name": "gpt-4.1-mini",
+      "inputTokens": 4280,
+      "outputTokens": 259,
+      "durationMs": 4447,
+      "inputCharacters": 19356,
+      "legacyInputCharacters": 130616
+    }
+  },
+  "coverage": {
+    "oauth": true,
+    "setup": true,
+    "scopes": true,
+    "approval": true,
+    "managed_auth": true
+  },
+  "identity": {
+    "name": "Airtable",
+    "website": "https://airtable.com"
+  },
+  "confirmations": [
+    {
+      "requestedDomain": "airtable.com",
+      "candidateIndex": 0,
+      "website": "https://airtable.com",
+      "pausedBeforeSelection": true
+    }
+  ],
+  "outputUrl": "http://127.0.0.1:3190/providers/airtable",
+  "claims": [
+    {
+      "topic": "oauth",
+      "classification": "supported",
+      "text": "Provider documentation describes third-party OAuth access to its resources.",
+      "status": "verified",
+      "passages": [
+        {
+          "sourceId": "sf0b31ad355",
+          "passage": "urationCreate and update automationsDelete automations that are off | ## Authentication Our MCP server supports two authentication methods: OAuth (recommended for end-user connections) and Personal Access Tokens (PATs, recommended for CLI, scripts, and server-side setups). OAuth is the fastest path for connecting through most known clients. After installing the MCP server, complete a one-click OAuth flow before getting started. During authorization, you can choose exactly which bases, apps, and workspaces to connect to. You can manage and update the connection permissions any time from [https://airtable.com/?integrations=thirdParty](https://airtable.com/?integrations=thirdParty). Our server supports Dynamic Client Registration (DCR). ## OAuth Some organizations may want to manually create and approve an OAuth app. Admins can approve this specific app in the admin panel if they don't want"
+        }
+      ]
+    },
+    {
+      "topic": "managed_auth",
+      "classification": "available",
+      "text": "Composio documents managed OAuth as available for Airtable. Scope fit and successful authorization are separate checks.",
+      "status": "verified",
+      "passages": [
+        {
+          "sourceId": "s630a1da8b2",
+          "passage": " **Category:** productivity - **Auth:** OAUTH2, API_KEY - **Composio-managed OAuth available?** Yes - **Tools:** 28 - **Triggers:** 6 - **S"
+        }
+      ]
+    },
+    {
+      "topic": "approval",
+      "classification": "unknown",
+      "text": "This investigation did not establish whether provider review is required for your intended distribution.",
+      "status": "unverified",
+      "passages": []
+    }
+  ]
+}

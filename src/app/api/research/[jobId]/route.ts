@@ -14,6 +14,10 @@ async function publicJob(id: string) {
     id: job.id,
     query: job.query,
     identity: context.identity ?? null,
+    selectionState: context.selectionState ?? 'discovering',
+    identityConfirmation: context.identityConfirmation ?? null,
+    metrics: context.metrics ?? null,
+    coverage: context.coverage ?? null,
     status: job.status,
     currentStage: job.currentStage,
     completedStages: job.completedStages,
@@ -80,7 +84,8 @@ export async function POST(request: Request, { params }: Params) {
       { headers: { 'Cache-Control': 'no-store' } },
     );
   } catch (error) {
-    console.error('Research advancement failed', error);
+    if (error instanceof Error && /identity is locked|selection is not currently|listed provider/.test(error.message)) return errorJson(error.message, 409);
+    console.error('Research advancement failed', { kind: error instanceof Error ? error.name : 'unknown' });
     return errorJson('Could not advance research. Retry this stage later.', 503);
   }
 }

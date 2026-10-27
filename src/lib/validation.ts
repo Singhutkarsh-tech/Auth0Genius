@@ -53,6 +53,9 @@ export const sourceSchema = z.object({
   content: z.string().max(14000).nullable().default(null),
   originalUrl: safeUrl.nullable().default(null),
   contentHash: z.string().nullable().default(null),
+  links: z.array(safeUrl).optional(),
+  publishedAt: z.string().nullable().optional(),
+  cacheStatus: z.enum(['hit', 'miss']).optional(),
 });
 export const stepSchema = z.object({
   id: z.string().regex(/^[a-z0-9-]+$/),
@@ -82,6 +85,7 @@ export const guideSchema = z.object({
   status: z.enum(['sourced', 'partial']),
   oauthStatus: z.enum(['supported', 'unsupported', 'unknown']),
   authenticationType: authenticationType.default('unverified'),
+  authenticationMethods: z.array(z.enum(['oauth2', 'oauth1', 'oauth_like_proprietary', 'personal_access_token', 'api_key'])).default([]),
   authenticationEvidence: claimSchema.default({
     text: 'The exact authentication mechanism is unverified.',
     status: 'unverified',
@@ -111,6 +115,7 @@ export const guideSchema = z.object({
   ),
   agentResponsibilities: z.array(z.string()),
   humanResponsibilities: z.array(z.string()),
+  responsibilityEvidence: z.array(z.object({ owner: z.enum(['Agent', 'Human']), detail: claimSchema })).default([]),
   unknowns: z.array(z.string()),
   sources: z.array(sourceSchema).min(1).max(12),
   generatedAt: z.iso.datetime(),
@@ -128,6 +133,11 @@ export const guideSchema = z.object({
     method: z.enum(['seed_research', 'live_research']),
     attempted: z.array(z.string()),
     limitations: z.array(z.string()),
+    pipelineVersion: z.number().optional(),
+    metrics: z.unknown().optional(),
+    previousVersion: z.number().optional(),
+    evidenceChanges: z.array(z.string()).optional(),
+    extraction: z.object({ proposed: z.number(), accepted: z.number(), rejected: z.array(z.object({ kind: z.string(), sourceId: z.string(), reason: z.string() })) }).optional(),
   }),
 });
 export type Guide = z.infer<typeof guideSchema>;
@@ -280,7 +290,29 @@ export function downgradeUnreviewed(input: unknown): Guide {
     guide.approvalEvidence.status = 'unverified';
   }
   guide.stageExemptions = guide.stageExemptions.filter((e) => e.reason.status === 'not_applicable');
-  guide.status = 'partial';
+  if (guide.provenance.method === 'live_research' && guide.provenance.pipelineVersion !== 2) {
+    const neutral = (text: string): Claim => ({ text, status: 'unverified', sourceIds: [], support: null });
+    if (guide.oauthStatus === 'unknown') guide.oauthEvidence = neutral('This investigation did not establish native provider OAuth support from relevant official evidence.');
+    if (guide.managedAuth === 'unknown') guide.managedEvidence = neutral('This investigation did not establish provider-specific Composio-managed OAuth availability.');
+    if (guide.authenticationType === 'unverified') guide.authenticationEvidence = neutral('The exact authentication mechanism was not established.');
+    if (guide.approval === 'unknown') guide.approvalEvidence = neutral('This investigation did not establish provider review conditions for the intended distribution.');
+    if (guide.mainBlocker.status !== 'verified') guide.mainBlocker = neutral('Resolve the missing official evidence before proceeding with setup.');
+    if (guide.difficultyExplanation.status !== 'verified') { guide.difficulty = 'Unknown'; guide.difficultyExplanation = neutral('Setup difficulty was not established.'); }
+    if (guide.setupEffort.status !== 'verified') guide.setupEffort = neutral('Developer effort was not measured.');
+    if (guide.approvalTime.status !== 'verified') guide.approvalTime = neutral('No provider review duration was established.');
+    guide.steps = guide.steps.filter((step) => step.detail.status === 'verified').map((step) => ({ ...step, blocker: null, note: 'Progress is user-reported; external completion was not checked.' }));
+    if (!guide.steps.length) guide.steps = [{ id: 'review-missing-evidence', title: 'Review official evidence before configuration', detail: guide.oauthEvidence, owner: 'Human', stage: 'Verify', routes: ['custom'], url: null, note: null, blocker: null, effort: null }];
+    guide.approvalDetails = guide.approvalDetails.filter((item) => item.detail.status === 'verified');
+    if (!guide.approvalDetails.length) guide.approvalDetails = [{ title: 'Unresolved provider conditions', detail: guide.approvalEvidence }];
+    guide.troubleshooting = guide.troubleshooting.filter((item) => item.reason.status === 'verified').map((item) => ({ ...item, action: 'Inspect the cited provider instructions and confirm applicability.' }));
+    guide.prerequisites = ['Choose the actions and resources your agent needs; confirm account eligibility with the provider.'];
+    guide.agentResponsibilities = ['Investigate public documentation and retain source evidence.'];
+    guide.humanResponsibilities = ['Own account login, permissions, credentials, and observed test results.'];
+    guide.responsibilityEvidence = guide.responsibilityEvidence.filter((item) => item.detail.status === 'verified');
+    guide.unknowns = ['This saved guide predates the current evidence pipeline. Use Re-research to investigate unresolved provider details.'];
+    guide.description = `${guide.name}: ${guide.oauthStatus === 'supported' ? 'documented OAuth support; confirm the selected route and account conditions.' : 'Partial provider research. Review official evidence before choosing an authentication route.'}`;
+    guide.status = 'partial';
+  }
   if (
     guide.provenance.method === 'live_research' &&
     (guide.oauthStatus === 'unknown' || guide.managedAuth === 'unknown') &&
@@ -298,5 +330,7 @@ export const researchInput = z.object({
     .max(200)
     .refine((v) => !/[\x00-\x1f]/.test(v), 'Invalid input'),
   useCase: z.string().trim().max(500).optional(),
+  selectedProviderSlug: z.string().regex(/^[a-z0-9-]+$/).optional(),
+  refresh: z.boolean().default(false),
   accessCode: z.string().max(200).optional(),
 });

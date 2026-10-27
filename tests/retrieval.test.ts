@@ -68,7 +68,8 @@ describe('Retained retrieval provenance', () => {
     const source = result.sources[0];
     expect(source.summary).toContain('Slack uses OAuth');
     expect(source.summary).not.toContain('never required');
-    expect(source.content).toBe(source.text);
+    expect(source).not.toHaveProperty('text');
+    expect(source.content).toContain('Slack uses OAuth');
     expect(source.originalUrl).toBe('https://api.slack.com/old');
     expect(source.url).toBe('https://docs.slack.dev/oauth');
     expect(source.contentHash).toMatch(/^[a-f0-9]{64}$/);

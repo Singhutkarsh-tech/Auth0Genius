@@ -126,6 +126,9 @@ export function GuideWorkspace({ guide }: { guide: Guide }) {
           {copied ? <Check size={15} /> : <Copy size={15} />}{' '}
           {copied ? 'Link copied' : 'Share guide'}
         </button>
+        <Link className="button secondary" href={`/research/new?q=${encodeURIComponent(guide.website)}&provider=${guide.slug}&refresh=true`}>
+          Re-research
+        </Link>
       </div>
       {copyError && (
         <p role="status" className="notice">
@@ -552,6 +555,7 @@ export function GuideWorkspace({ guide }: { guide: Guide }) {
                     {item}
                   </p>
                 ))}
+                {guide.responsibilityEvidence.filter((item) => item.owner === 'Agent').map((item, index) => <ClaimText key={index} claim={item.detail} />)}
               </div>
               <div className="ownership-card">
                 <h3>
@@ -564,6 +568,7 @@ export function GuideWorkspace({ guide }: { guide: Guide }) {
                     {item}
                   </p>
                 ))}
+                {guide.responsibilityEvidence.filter((item) => item.owner === 'Human').map((item, index) => <ClaimText key={index} claim={item.detail} />)}
               </div>
             </div>
             <p className="small-note">
@@ -624,10 +629,9 @@ export function GuideWorkspace({ guide }: { guide: Guide }) {
               <EvidenceBadge status="not_applicable" />
             </div>
             <p className="small-note">
-              A rule-checked authentication type comes from a narrow protocol phrase in fetched
-              provider documentation. It establishes the protocol label only; it does not verify
-              scopes, approval, launch readiness, or a working connection. Other claims remain
-              unverified until their meaning is reviewed against retained evidence.
+              Documentation support is checked against the selected provider, authentication direction,
+              source authority, and retained passages. Quoted instructions preserve the provider’s wording.
+              This automatic check does not establish a successful connection, account eligibility, or approval.
             </p>
             <div className="source-list">
               {guide.sources.map((s, i) => (
@@ -635,7 +639,7 @@ export function GuideWorkspace({ guide }: { guide: Guide }) {
                   <span className="source-index">{String(i + 1).padStart(2, '0')}</span>
                   <div>
                     <OfficialLink href={s.url}>{s.title}</OfficialLink>
-                    <p>{s.summary}</p>
+                    <details><summary>Evidence summary</summary><p>{s.summary}</p></details>
                     <small>
                       Authority: {s.authority} · Capture: {s.capture}. Topic tags indicate
                       relevance, not semantic verification.

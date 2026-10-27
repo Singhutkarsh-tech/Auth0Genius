@@ -4,6 +4,8 @@ export type PublicJob = {
   query: string;
   identity?: { name: string; website: string } | null;
   status: 'queued' | 'running' | 'blocked' | 'completed' | 'failed';
+  selectionState?: 'discovering' | 'awaiting_provider_selection' | 'confirmed';
+  identityConfirmation?: { method: string; website: string; confirmedAt: string } | null;
   currentStage: number;
   completedStages: number[];
   error: string | null;

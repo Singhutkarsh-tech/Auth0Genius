@@ -1,0 +1,20 @@
+import { expect, it, vi } from 'vitest';
+const mocks = vi.hoisted(() => ({ search: vi.fn(), retrieve: vi.fn() }));
+vi.mock('@/lib/research/retrieval', async () => ({ ...await vi.importActual('@/lib/research/retrieval'), searchWeb: mocks.search, retrieve: mocks.retrieve }));
+import { recoverEvidenceGaps, type ResearchEvidenceContext } from '@/lib/research/questions';
+import { emptyMetrics, researchLimits } from '@/lib/research/limits';
+import { liveGuide } from './helpers/live-guide';
+it('detects missing official topics and searches again within the shared budget', async () => {
+  const context: ResearchEvidenceContext = { identity: { name: 'Orbit', website: 'https://orbit.dev' }, domain: 'orbit.dev', sources: [{ ...liveGuide().sources[0], url: 'https://orbit.dev/about', title: 'Orbit', content: 'Orbit helps teams organize work.', topics: ['general'] }], attempted: [], metrics: emptyMetrics() };
+  mocks.search.mockImplementation(async () => { context.metrics!.searches++; return [{ title: 'Orbit OAuth API reference', url: 'https://orbit.dev/docs/oauth', content: 'Official OAuth reference' }]; });
+  mocks.retrieve.mockImplementation(async () => ({ sources: [{ ...liveGuide().sources[0], url: 'https://orbit.dev/docs/oauth', domain: 'orbit.dev', title: 'Orbit OAuth API reference', content: 'Orbit uses OAuth 2.0 authorization code flow so your app can access Orbit resources. Register an OAuth application and configure the client ID and redirect URL. Request API scopes in your application.' }], attempts: ['Fetched official documentation'] }));
+  await recoverEvidenceGaps(context);
+  expect(context.attempted.some((line) => line.startsWith('Coverage gap: oauth'))).toBe(true);
+  expect(mocks.search.mock.calls[0][0]).toContain('site:orbit.dev');
+  expect(context.coverage).toMatchObject({ oauth: true, setup: true, scopes: true, approval: false, managed_auth: false });
+  expect(mocks.search.mock.calls.length).toBeLessThanOrEqual(3);
+  context.metrics!.searches = researchLimits.searches;
+  const before = mocks.search.mock.calls.length;
+  await recoverEvidenceGaps(context);
+  expect(mocks.search).toHaveBeenCalledTimes(before);
+});

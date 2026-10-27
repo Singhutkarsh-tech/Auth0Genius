@@ -1,0 +1,36 @@
+{
+  "verifiedAt": "2026-10-20T08:41:00.956Z",
+  "connection": "Supabase transaction pooler",
+  "providers": 10,
+  "guides": 10,
+  "evidenceSources": 49,
+  "featured": [
+    "GitHub",
+    "Gmail",
+    "Slack"
+  ],
+  "tables": [
+    {
+      "name": "EvidenceSource",
+      "rls": true
+    },
+    {
+      "name": "Guide",
+      "rls": true
+    },
+    {
+      "name": "Provider",
+      "rls": true
+    },
+    {
+      "name": "ResearchJob",
+      "rls": true
+    },
+    {
+      "name": "ResearchQuota",
+      "rls": true
+    }
+  ],
+  "rlsEnabledAt": "2026-10-20T08:41:49.068Z",
+  "serverAccessAfterRls": 10
+}

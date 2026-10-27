@@ -1,4 +1,4 @@
-import { matches } from '../providers';
+import { sameOfficialDomain } from './identity';
 import { validateEvidence, type Guide } from '../validation';
 export type SmokeReport = {
   input: string;
@@ -19,11 +19,18 @@ export type SmokeReport = {
     passages: unknown;
   }[];
   error?: string;
+  metrics?: unknown;
+  coverage?: unknown;
+  identity?: { name: string; website: string };
+  confirmations?: { requestedDomain: string; candidateIndex: number; website: string; pausedBeforeSelection: boolean }[];
 };
 export async function runLiveResearch(options: {
   base: string;
   input: string;
   accessCode?: string;
+  refresh?: boolean;
+  selectedProviderSlug?: string;
+  confirmDomain?: string;
   fetcher?: typeof fetch;
   report: (report: SmokeReport) => void;
   sleep?: (ms: number) => Promise<void>;
@@ -47,23 +54,15 @@ export async function runLiveResearch(options: {
     return data;
   };
   try {
-    const before = await request(`/api/providers?q=${encodeURIComponent(options.input)}`);
-    const existing = (before.providers as Guide[]).find((g) => matches(g, options.input, true));
-    if (existing) {
-      report.outcome = 'reused';
-      report.outputUrl = new URL(`/providers/${existing.slug}`, options.base).href;
-      report.error = 'Existing guide found. No fresh research was performed.';
-      options.report(report);
-      return report;
-    }
     const created = await request('/api/research', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ query: options.input, accessCode: options.accessCode }),
+      body: JSON.stringify({ query: options.input, accessCode: options.accessCode, refresh: options.refresh, selectedProviderSlug: options.selectedProviderSlug }),
     });
     if (created.existing || created.duplicate || !created.jobId) {
       report.outcome = 'reused';
       report.error = 'The server reused a guide or active job; this is not fresh generation.';
+      if (created.url) report.outputUrl = new URL(created.url, options.base).href;
       options.report(report);
       return report;
     }
@@ -72,6 +71,9 @@ export async function runLiveResearch(options: {
     for (let attempts = 0; attempts < 150 && Date.now() - started < 30 * 60 * 1000; attempts++) {
       const state = await request(`/api/research/${created.jobId}`);
       report.model = state.model;
+      report.metrics = state.metrics;
+      report.coverage = state.coverage;
+      report.identity = state.identity;
       report.stages.push({
         status: state.status,
         stage: state.currentStage,
@@ -81,8 +83,14 @@ export async function runLiveResearch(options: {
       report.attempted = state.attempted;
       if (state.status === 'failed') throw new Error(state.error ?? 'Research failed');
       if (state.status === 'blocked') {
+        const candidate = options.confirmDomain && state.identityCandidates?.find((item: { website: string }) => sameOfficialDomain(item.website, options.confirmDomain!));
+        if (candidate && !report.confirmations?.length) {
+          report.confirmations = [{ requestedDomain: options.confirmDomain!, candidateIndex: candidate.index, website: candidate.website, pausedBeforeSelection: state.currentStage === 0 && state.completedStages.length === 0 }];
+          await request(`/api/research/${created.jobId}`, { method: 'POST', headers: { 'x-research-access-code': options.accessCode ?? '', 'Content-Type': 'application/json' }, body: JSON.stringify({ candidateIndex: candidate.index }) });
+          continue;
+        }
         report.outcome = 'blocked';
-        report.error = state.error ?? 'Provider identity needs human confirmation.';
+        report.error = state.error ?? 'Provider identity needs explicit user selection. Supply --confirm-domain only for the provider you intend.';
         report.outputUrl = new URL(`/research/${created.jobId}`, options.base).href;
         options.report(report);
         return report;

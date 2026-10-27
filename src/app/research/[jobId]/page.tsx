@@ -6,14 +6,16 @@ export default async function ResearchPage({
   searchParams,
 }: {
   params: Promise<{ jobId: string }>;
-  searchParams: Promise<{ q?: string }>;
+  searchParams: Promise<{ q?: string; provider?: string; refresh?: string }>;
 }) {
   const { jobId } = await params;
-  const { q } = await searchParams;
+  const { q, provider, refresh } = await searchParams;
   return (
     <ResearchWorkspace
       jobId={jobId}
       initialQuery={q?.slice(0, 200) ?? ''}
+      initialProviderSlug={provider}
+      refresh={refresh === 'true'}
       protectedResearch={!!process.env.RESEARCH_ACCESS_CODE && process.env.RESEARCH_PUBLIC_ACCESS !== 'true'}
     />
   );

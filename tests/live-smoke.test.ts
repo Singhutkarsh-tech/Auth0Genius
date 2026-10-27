@@ -5,7 +5,7 @@ const response = (data: unknown) => new Response(JSON.stringify(data));
 describe('Fresh live smoke acceptance reporting', () => {
   it('reports saved library reuse without performing or claiming fresh generation', async () => {
     const g = liveGuide();
-    const fetcher = vi.fn(async () => response({ providers: [g] })) as unknown as typeof fetch;
+    const fetcher = vi.fn(async () => response({ existing: true, url: `/providers/${g.slug}` })) as unknown as typeof fetch;
     const result = await runLiveResearch({
       base: 'http://localhost:3182',
       input: g.name,
@@ -19,7 +19,6 @@ describe('Fresh live smoke acceptance reporting', () => {
   it('does not count an active duplicate as a fresh run', async () => {
     const fetcher = vi
       .fn()
-      .mockResolvedValueOnce(response({ providers: [] }))
       .mockResolvedValueOnce(response({ jobId: 'previous', duplicate: true }));
     const result = await runLiveResearch({
       base: 'http://localhost:3182',
@@ -33,7 +32,6 @@ describe('Fresh live smoke acceptance reporting', () => {
   it('accepts provider input and records actual missing-configuration failure', async () => {
     const fetcher = vi
       .fn()
-      .mockResolvedValueOnce(response({ providers: [] }))
       .mockResolvedValueOnce(response({ jobId: 'new' }))
       .mockResolvedValueOnce(
         response({
@@ -51,7 +49,7 @@ describe('Fresh live smoke acceptance reporting', () => {
       fetcher,
       report: vi.fn(),
     });
-    expect(JSON.parse(fetcher.mock.calls[1][1].body).query).toBe('Unseeded provider');
+    expect(JSON.parse(fetcher.mock.calls[0][1].body).query).toBe('Unseeded provider');
     expect(result.outcome).toBe('failed');
     expect(result.error).toContain('OPENAI_API_KEY');
     expect(result.outputUrl).toBeUndefined();
@@ -59,7 +57,6 @@ describe('Fresh live smoke acceptance reporting', () => {
   it('stops at an identity confirmation gate instead of polling forever', async () => {
     const fetcher = vi
       .fn()
-      .mockResolvedValueOnce(response({ providers: [] }))
       .mockResolvedValueOnce(response({ jobId: 'new-identity' }))
       .mockResolvedValueOnce(
         response({
@@ -81,6 +78,6 @@ describe('Fresh live smoke acceptance reporting', () => {
     expect(result.outcome).toBe('blocked');
     expect(result.fresh).toBe(true);
     expect(result.error).toContain('Confirm');
-    expect(fetcher).toHaveBeenCalledTimes(3);
+    expect(fetcher).toHaveBeenCalledTimes(2);
   });
 });

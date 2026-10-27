@@ -45,7 +45,7 @@ export async function fetchDocument(
   value: string,
   redirects = 0,
   deadline = Date.now() + 20000,
-): Promise<{ url: string; title: string; text: string; truncated?: boolean }> {
+): Promise<{ url: string; title: string; text: string; truncated?: boolean; links?: string[]; publishedAt?: string | null }> {
   if (Date.now() >= deadline) throw new Error('Documentation fetch deadline exceeded');
   if (redirects > 3) throw new Error('Too many documentation redirects');
   const { url, address } = await resolvePublic(value);
@@ -56,7 +56,7 @@ export async function fetchDocument(
         {
           headers: {
             'User-Agent': 'Auth0Genius/0.1 (public OAuth documentation research)',
-            Accept: 'text/html,text/plain,application/json',
+            Accept: 'text/markdown,text/html,text/plain,application/json',
           },
           lookup: (_hostname, options, callback) => {
             if (options.all) callback(null, [{ address: address.address, family: address.family }]);
@@ -118,12 +118,20 @@ export async function fetchDocument(
   if (result.location)
     return fetchDocument(new URL(result.location, url).toString(), redirects + 1, deadline);
   const $ = load(result.body);
+  const links = new Set<string>();
+  const addLink = (href: string) => {
+    try { links.add(validateRemoteUrl(new URL(href, url).toString()).toString()); } catch {}
+  };
+  $('a[href]').each((_i, element) => addLink($(element).attr('href')!));
+  for (const match of result.body.matchAll(/\]\((https:\/\/[^\s)]+)\)/g)) addLink(match[1]);
+  const publishedAt = $('meta[property="article:modified_time"]').attr('content') ?? $('time[datetime]').attr('datetime') ?? null;
   $('script,style,nav,footer,header,iframe,noscript').remove();
-  const title = $('title').first().text().trim() || url.hostname;
+  $('p,li,h1,h2,h3,h4,br,div,tr').append(' ');
+  const title = $('title').first().text().trim() || /^#\s+(.+)$/m.exec(result.body)?.[1] || url.hostname;
   const text = ($('main').text() || $('article').text() || $('body').text() || result.body)
     .replace(/\s+/g, ' ')
     .trim()
     .slice(0, 14000);
   if (text.length < 100) throw new Error('Documentation contains insufficient readable text');
-  return { url: url.toString(), title, text, truncated: result.truncated };
+  return { url: url.toString(), title, text, truncated: result.truncated, links: [...links].slice(0, 80), publishedAt };
 }

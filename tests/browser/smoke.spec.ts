@@ -13,11 +13,11 @@ test('homepage loads with ten providers and exactly three featured integrations'
     ).toBeVisible();
   await page.screenshot({ path: 'test-results/screenshots/home-desktop.png', fullPage: true });
 });
-test('search resolves an alias and opens the saved guide', async ({ page }) => {
+test('search resolves an alias and explicit selection opens the saved guide', async ({ page }) => {
   await page.goto('/');
   const search = page.getByRole('combobox', { name: 'Search integrations' });
   await search.fill('Google Mail');
-  await search.press('Enter');
+  await page.getByRole('option', { name: /Gmail/ }).click();
   await expect(page).toHaveURL('/providers/gmail');
   await expect(page.getByRole('heading', { level: 1, name: 'Gmail', exact: true })).toBeVisible();
 });
@@ -242,7 +242,7 @@ test('a persisted generated fixture opens independently by URL', async ({ page }
     await expect(page.getByRole('heading', { name: 'Generated fixture', level: 1 })).toBeVisible();
     await expect(page.locator('.guide-content')).toContainText('Evidence, not just answers.');
     await expect(page.locator('.next-action')).toContainText(
-      'Review this step’s source evidence before proceeding',
+      'Verify OAuth support before proceeding',
     );
     await page.reload();
     await expect(page.getByRole('heading', { name: 'Generated fixture', level: 1 })).toBeVisible();

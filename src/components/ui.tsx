@@ -15,7 +15,7 @@ export function EvidenceBadge({ status }: { status: Claim['status'] }) {
       {status === 'verified' ? <Check size={11} /> : <CircleHelp size={11} />}
       {
         {
-          verified: 'Reviewed source support',
+          verified: 'Documentation supported',
           estimated: 'Estimated',
           unverified: 'Unverified',
           not_applicable: 'Not applicable',
@@ -57,7 +57,7 @@ export function ClaimText({ claim }: { claim: Claim }) {
           <summary>
             {claim.support.review === 'reviewed'
               ? 'Reviewed evidence summary'
-              : 'Supporting passages · semantic review unresolved'}
+              : claim.support.review === 'rule_checked' ? 'Automatically checked source passages' : 'Supporting passages · review unresolved'}
           </summary>
           {claim.support.references.map((ref, i) => (
             <blockquote key={i}>

@@ -1,0 +1,210 @@
+{
+  "input": "https://airtable.com",
+  "startedAt": "2026-10-27T08:06:25.695Z",
+  "outcome": "generated_pending_semantic_review",
+  "fresh": true,
+  "stages": [
+    {
+      "status": "queued",
+      "stage": 0,
+      "completedStages": []
+    },
+    {
+      "status": "running",
+      "stage": 1,
+      "completedStages": [
+        0
+      ]
+    },
+    {
+      "status": "running",
+      "stage": 2,
+      "completedStages": [
+        0,
+        1
+      ]
+    },
+    {
+      "status": "running",
+      "stage": 3,
+      "completedStages": [
+        0,
+        1,
+        2
+      ]
+    },
+    {
+      "status": "running",
+      "stage": 4,
+      "completedStages": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "status": "running",
+      "stage": 5,
+      "completedStages": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ]
+    },
+    {
+      "status": "running",
+      "stage": 6,
+      "completedStages": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ]
+    },
+    {
+      "status": "completed",
+      "stage": 7,
+      "completedStages": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ]
+    }
+  ],
+  "sourceUrls": [
+    "https://www.airtable.com/",
+    "https://airtable.com/developers/web/api/introduction",
+    "https://airtable.com/developers/extensions",
+    "https://support.airtable.com/articles/9362950318-using-builder-hub-in-airtable",
+    "https://docs.composio.dev/toolkits/airtable.md",
+    "https://docs.composio.dev/docs/authentication",
+    "https://support.airtable.com/articles/6811769763-third-party-integrations-via-oauth-overview"
+  ],
+  "attempted": [
+    "Retrieved https://www.airtable.com/ (2991 readable characters; fetched 2026-10-27T08:06:28.125Z)",
+    "User confirmed provider identity: Airtable (https://airtable.com). Selection establishes intent, not OAuth capability.",
+    "Searched for oauth: Airtable official developer API OAuth authentication third-party access authorization reference",
+    "Retrieved https://airtable.com/developers/web/api/introduction (762 readable characters; fetched 2026-10-27T08:06:29.978Z)",
+    "Retrieved https://airtable.com/developers/extensions (143 readable characters; fetched 2026-10-27T08:06:31.433Z)",
+    "Searched for setup: Airtable official register OAuth integration application developer hub redirect URL client ID",
+    "Searched for managed_auth: Airtable Composio toolkit authentication managed OAuth available",
+    "Searched for scopes: Airtable official API OAuth scopes permissions prerequisites",
+    "Retrieved https://support.airtable.com/articles/9362950318-using-builder-hub-in-airtable (4938 readable characters; fetched 2026-10-27T08:06:35.133Z)",
+    "Retrieved https://docs.composio.dev/toolkits/airtable.md (14000 readable characters; fetched 2026-10-27T08:06:33.672Z)",
+    "Retrieved https://docs.composio.dev/docs/authentication (14000 readable characters; fetched 2026-10-27T08:06:34.341Z)",
+    "Searched for approval: Airtable official OAuth integration external users distribution app review requirements privacy policy",
+    "Coverage gap: oauth. Attempting bounded targeted recovery.",
+    "Focused fallback for oauth: Airtable OAuth reference authorization third-party integrations API access site:airtable.com",
+    "Retrieved https://support.airtable.com/articles/6811769763-third-party-integrations-via-oauth-overview (8046 readable characters; fetched 2026-10-27T08:06:37.697Z)",
+    "Evidence coverage gate: all required topics have relevant official evidence; claim interpretation still checked separately.",
+    "Compared retrieved evidence and synthesized a structured guide using OpenAI",
+    "Validated guide schema, source references and retrieved destination URLs"
+  ],
+  "jobId": "cmvqej1ly000jy6v0gyuq4zxf",
+  "model": "gpt-4.1-mini",
+  "metrics": {
+    "searches": 6,
+    "fetches": 10,
+    "cacheHits": 0,
+    "stages": [
+      {
+        "stage": 0,
+        "durationMs": 1741,
+        "outcome": "completed"
+      },
+      {
+        "stage": 1,
+        "durationMs": 3386,
+        "outcome": "completed"
+      },
+      {
+        "stage": 2,
+        "durationMs": 3538,
+        "outcome": "completed"
+      },
+      {
+        "stage": 3,
+        "durationMs": 2528,
+        "outcome": "completed"
+      },
+      {
+        "stage": 4,
+        "durationMs": 12662,
+        "outcome": "completed"
+      },
+      {
+        "stage": 5,
+        "durationMs": 2,
+        "outcome": "completed"
+      },
+      {
+        "stage": 6,
+        "durationMs": 31,
+        "outcome": "completed"
+      }
+    ],
+    "documentReads": 10,
+    "model": {
+      "name": "gpt-4.1-mini",
+      "inputTokens": 2339,
+      "outputTokens": 257,
+      "durationMs": 12646,
+      "inputCharacters": 9992,
+      "legacyInputCharacters": 105307
+    }
+  },
+  "coverage": {
+    "oauth": true,
+    "setup": true,
+    "scopes": true,
+    "approval": true,
+    "managed_auth": true
+  },
+  "identity": {
+    "name": "Airtable",
+    "website": "https://airtable.com"
+  },
+  "outputUrl": "http://127.0.0.1:3190/providers/airtable",
+  "claims": [
+    {
+      "topic": "oauth",
+      "classification": "supported",
+      "text": "Provider documentation describes third-party OAuth access to its resources.",
+      "status": "verified",
+      "passages": [
+        {
+          "sourceId": "sa9d576692b",
+          "passage": " your organization Development Personal access tokens - Personal access tokens grant permission to read and write data via the Airtable API OAuth integrations - OAuth integrations let users grant your service or application API access to their Airtable data Secrets - Secrets are used to securely store sensitive information like API keys and passwords. These can be utilized in scripting extensions or “Run a script” automation actions. Navigating to Builder Hub Open your Airtable home screen. In the upper right corner of the page, click the profile icon. This will reveal a menu. Click Builder Hub. Registering OAuth integrations in Builder Hub Go to your OAuth integrations page. (Must be logged into Airtable) Click the Register an OAuth integration button. Under “Name” type in a name for this OAuth integration. Under “OAuth redirect URL” enter the URL where you want to redirect users. Click"
+        }
+      ]
+    },
+    {
+      "topic": "managed_auth",
+      "classification": "available",
+      "text": "Composio documents managed OAuth as available for Airtable. Scope fit and successful authorization are separate checks.",
+      "status": "verified",
+      "passages": [
+        {
+          "sourceId": "s630a1da8b2",
+          "passage": " **Category:** productivity - **Auth:** OAUTH2, API_KEY - **Composio-managed OAuth available?** Yes - **Tools:** 28 - **Triggers:** 6 - **S"
+        }
+      ]
+    },
+    {
+      "topic": "approval",
+      "classification": "unknown",
+      "text": "This investigation did not establish whether provider review is required for your intended distribution.",
+      "status": "unverified",
+      "passages": []
+    }
+  ]
+}

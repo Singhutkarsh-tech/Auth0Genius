@@ -5,8 +5,6 @@ import { type Guide } from '../validation';
 import {
   searchWeb,
   retrieve,
-  providerDomains,
-  providerReferenceResults,
   identityCandidates,
   providerDomain,
   type Retrieved,
@@ -14,6 +12,9 @@ import {
 import { identifyProvider, synthesize, reconcileGuide } from './synthesis';
 import { assertStageAdvance } from './state';
 import { validateRemoteUrl } from './network';
+import { parseResearchTarget, sameOfficialDomain } from './identity';
+import { emptyMetrics, researchLimits, type ResearchMetrics } from './limits';
+import { researchQuestions, recoverEvidenceGaps } from './questions';
 import type { SearchResult } from './retrieval';
 export type Context = {
   useCase?: string;
@@ -26,6 +27,13 @@ export type Context = {
   identityResults?: SearchResult[];
   chosenCandidateIndex?: number;
   identityUrl?: string;
+  identityConfirmation?: { method: 'candidate' | 'explicit_url' | 'saved_provider'; website: string; confirmedAt: string };
+  selectionState?: 'discovering' | 'awaiting_provider_selection' | 'confirmed';
+  identityCaptures?: Retrieved[];
+  refresh?: boolean;
+  providerSlug?: string;
+  metrics?: ResearchMetrics;
+  coverage?: import('./questions').ResearchEvidenceContext['coverage'];
 };
 export function configurationError() {
   const missing = ['OPENAI_API_KEY', 'TAVILY_API_KEY'].filter((k) => !process.env[k]);
@@ -57,37 +65,31 @@ export async function advanceJob(
 ): Promise<ExecutionResult> {
   if (selection?.candidateIndex !== undefined || selection?.officialUrl) {
     const current = await db.researchJob.findUnique({ where: { id } });
-    if (current?.status === 'blocked' && current.currentStage === 0) {
-      const context = current.context as unknown as Context;
-      if (
-        selection.candidateIndex !== undefined &&
-        (!Number.isInteger(selection.candidateIndex) ||
-          !context.identityResults?.[selection.candidateIndex])
-      )
-        return { claimed: false, outcome: 'blocked', leaseUntil: null, retryAfterMs: 0 };
-      if (selection.officialUrl) {
-        validateRemoteUrl(selection.officialUrl);
-        const parsed = new URL(selection.officialUrl);
-        if (parsed.protocol !== 'https:')
-          return { claimed: false, outcome: 'blocked', leaseUntil: null, retryAfterMs: 0 };
-        context.identityUrl = parsed.origin;
-        context.chosenCandidateIndex = undefined;
-        context.identityResults = undefined;
-        context.identityOptions = undefined;
-      }
-      if (selection.candidateIndex !== undefined)
-        context.chosenCandidateIndex = selection.candidateIndex;
-      const selected = await db.researchJob.updateMany({
-        where: { id, status: 'blocked', currentStage: 0 },
-        data: {
-          context: context as unknown as Prisma.InputJsonValue,
-          status: 'queued',
-          error: null,
-        },
-      });
-      if (!selected.count)
-        return { claimed: false, outcome: 'leased', leaseUntil: null, retryAfterMs: 500 };
+    if (!current) throw new Error('Research job not found');
+    const context = current.context as unknown as Context;
+    if (context.identityConfirmation) throw new Error('Provider identity is locked for this investigation');
+    if (current.status !== 'blocked' || current.currentStage !== 0)
+      throw new Error('Provider selection is not currently requested');
+    if (selection.candidateIndex !== undefined) {
+      const candidate = context.identityOptions?.[selection.candidateIndex];
+      if (!Number.isInteger(selection.candidateIndex) || !candidate) throw new Error('Choose one of the listed provider candidates');
+      validateRemoteUrl(candidate.website);
+      context.identity = { name: candidate.name, website: candidate.website };
+      context.identityUrl = candidate.website;
+      context.identityConfirmation = { method: 'candidate', website: candidate.website, confirmedAt: new Date().toISOString() };
+      context.selectionState = 'confirmed';
+    } else if (selection.officialUrl) {
+      const target = parseResearchTarget(selection.officialUrl);
+      if (target.kind === 'name') throw new Error('Enter a public HTTPS provider website');
+      context.identityUrl = target.url;
+      context.identity = undefined;
+      context.selectionState = 'discovering';
     }
+    const selected = await db.researchJob.updateMany({
+      where: { id, status: 'blocked', currentStage: 0 },
+      data: { context: context as unknown as Prisma.InputJsonValue, status: 'queued', error: null },
+    });
+    if (!selected.count) return { claimed: false, outcome: 'leased', leaseUntil: null, retryAfterMs: 500 };
   }
   const now = new Date();
   const leaseUntil = new Date(Date.now() + 150000);
@@ -111,6 +113,9 @@ export async function advanceJob(
   }
   const job = await db.researchJob.findUniqueOrThrow({ where: { id } });
   const context = job.context as unknown as Context;
+  context.metrics ??= emptyMetrics();
+  const stageStarted = Date.now();
+  const measure = (outcome: string) => context.metrics!.stages.push({ stage: job.currentStage, durationMs: Date.now() - stageStarted, outcome });
   const fence = { id, currentStage: job.currentStage, leaseUntil, status: 'running' };
   try {
     const config = configurationError();
@@ -118,178 +123,65 @@ export async function advanceJob(
     if (Date.now() - job.startedAt.getTime() > 30 * 60 * 1000)
       throw new Error('This research session expired. Start a fresh investigation.');
 
+    if (job.currentStage > 0 && (!context.identityConfirmation || !context.identity || context.selectionState !== 'confirmed' || !sameOfficialDomain(context.identity.website, context.identityConfirmation.website)))
+      throw new Error('Provider confirmation is required before OAuth research can advance');
     switch (job.currentStage) {
       case 0: {
-        let found: SearchResult[];
-        if (context.chosenCandidateIndex !== undefined && context.identityResults) {
-          found = [context.identityResults[context.chosenCandidateIndex]];
-        } else {
-          try {
-            found = await searchWeb(
-              context.identityUrl
-                ? `${new URL(context.identityUrl).hostname} OAuth developer API documentation official`
-                : `${job.query} ${context.useCase ?? ''} official company product website`,
-            );
-          } catch (error) {
-            if (!context.identityUrl) throw error;
-            found = [];
-            context.attempted.push('Search unavailable; validating the supplied website directly');
+        if (context.identityConfirmation && context.identity) {
+          if (!sameOfficialDomain(context.identity.website, context.identityConfirmation.website)) throw new Error('Confirmed provider identity changed');
+          context.domain = providerDomain(context.identity.website);
+          const selectedCapture = context.identityCaptures?.filter((source) => sameOfficialDomain(source.url, context.identity!.website)) ?? [];
+          for (const source of selectedCapture) if (!context.sources.some((s) => s.url === source.url)) context.sources.push(source);
+          if (!selectedCapture.length) {
+            const fetched = await retrieve([{ title: context.identity.name, url: context.identityUrl!, content: '' }], context.domain, context.sources, { metrics: context.metrics });
+            if (fetched.sources.some((source) => !sameOfficialDomain(source.url, context.identity!.website))) throw new Error('Selected provider redirected to a conflicting identity; start a fresh investigation');
+            context.sources.push(...fetched.sources);
+            context.attempted.push(...fetched.attempts);
           }
+          context.attempted.push(`User confirmed provider identity: ${context.identity.name} (${context.identity.website}). Selection establishes intent, not OAuth capability.`);
+          break;
         }
+        let found: SearchResult[] = [];
         if (context.identityUrl) {
-          // Read the user-supplied page itself; search ranking cannot replace its identity.
-          const supplied = await retrieve(
-            [{ title: 'User supplied provider website', url: context.identityUrl, content: '' }],
-            providerDomain(context.identityUrl),
-          );
-          context.attempted.push(...supplied.attempts);
-          found = [...supplied.sources.map((source) => ({
-            title: source.title,
-            url: source.url,
-            content: source.content ?? source.summary,
-          })), ...found];
-        }
-        if (!context.identityUrl && !identityCandidates(found, job.query).length) {
-          context.attempted.push(
-            `Initial discovery had no provider-domain candidate: ${found.map((r) => r.url).join(', ')}`,
-          );
-          try {
-            found = await searchWeb(
-              `${job.query} ${context.useCase ?? ''} OAuth official developer documentation`,
-            );
-          } catch (error) {
-            if (!context.identityUrl) throw error;
-            context.attempted.push('Secondary search unavailable; supplied-site evidence retained');
+          found = [{ title: 'User supplied provider website', url: context.identityUrl, content: '' }];
+        } else {
+          found = await searchWeb(`${job.query} ${context.useCase ?? ''} official company product website`, [], context.metrics);
+          if (!identityCandidates(found, job.query).length) {
+            found = await searchWeb(`${job.query} official developer API website`, [], context.metrics);
+            context.attempted.push('Initial provider discovery had no credible match; attempted one bounded fallback.');
           }
         }
-        found = identityCandidates(found, context.identityUrl ?? job.query);
-        context.attempted.push(
-          'Searched for provider identity and official developer documentation',
-          `Discovery URLs (not verified evidence): ${found.map((result) => result.url).join(', ')}`,
-        );
-        const identity = await identifyProvider(
-          job.query,
-          found,
-          context.useCase,
-          context.identityUrl,
-        );
-        if (identity.ambiguous) {
-          context.identityOptions = identity.candidates;
-          context.identityResults = identity.results;
-          const blocked = await db.researchJob.updateMany({
-            where: { id, currentStage: 0, leaseUntil, status: 'running' },
-            data: {
-              status: 'blocked',
-              error: identity.reason || 'Confirm which provider you mean.',
-              context: context as unknown as Prisma.InputJsonValue,
-              leaseUntil: null,
-            },
-          });
-          return {
-            claimed: true,
-            outcome: blocked.count ? 'blocked' : 'superseded',
-            leaseUntil: null,
-            retryAfterMs: 0,
-          };
+        const discovery = await identifyProvider(job.query, found, context.useCase, context.identityUrl, context.metrics);
+        context.identityCaptures = discovery.captures ?? [];
+        context.identityOptions = discovery.candidates ?? [];
+        context.identityResults = discovery.results ?? found;
+        context.attempted.push('Discovered provider candidates from public page evidence. No OAuth research has started.');
+        // Even a model/stub returning ambiguous=false cannot confirm a name-based request.
+        const explicitAccepted = context.identityUrl && !discovery.ambiguous && 'website' in discovery && typeof discovery.website === 'string' && sameOfficialDomain(discovery.website, context.identityUrl);
+        if (!explicitAccepted) {
+          context.selectionState = 'awaiting_provider_selection';
+          measure('awaiting_provider_selection');
+          const blocked = await db.researchJob.updateMany({ where: fence, data: { status: 'blocked', error: discovery.reason ?? 'Select the intended provider or enter its website.', context: context as unknown as Prisma.InputJsonValue, leaseUntil: null } });
+          return { claimed: true, outcome: blocked.count ? 'blocked' : 'superseded', leaseUntil: null, retryAfterMs: 0 };
         }
-        context.identity = identity;
-        context.identityOptions = undefined;
-        context.identityResults = undefined;
-        context.chosenCandidateIndex = undefined;
-        validateRemoteUrl(context.identity.website);
-        context.attempted.push(
-          `Selected observed provider identity origin: ${context.identity.website}`,
-        );
+        context.identity = { name: discovery.name!, website: discovery.website! };
+        context.identityConfirmation = { method: 'explicit_url', website: context.identity.website, confirmedAt: new Date().toISOString() };
+        context.selectionState = 'confirmed';
         context.domain = providerDomain(context.identity.website);
-        const retrieved = await retrieve(found.slice(0, 2), context.domain);
-        context.sources.push(...retrieved.sources);
-        context.attempted.push(...retrieved.attempts);
+        context.sources.push(...(discovery.captures ?? []).filter((source) => sameOfficialDomain(source.url, context.identity!.website)));
+        context.attempted.push(`Validated the supplied website identity: ${context.identity.name} (${context.identity.website}).`);
         break;
       }
-      case 1: {
-        let found: SearchResult[] = [];
-        try {
-          found = await searchWeb(
-            `${context.identity!.name} API authentication login flow authorization scopes`,
-            providerDomains(context.domain!),
-          );
-        } catch (error) {
-          if (!providerReferenceResults(context.domain!, 'authentication').length) throw error;
-          context.attempted.push('Search unavailable; checking the configured official authentication documentation');
-        }
-        const candidates = [
-          ...providerReferenceResults(context.domain!, 'authentication'),
-          ...found,
-        ].filter((item, index, all) => all.findIndex((candidate) => candidate.url === item.url) === index);
-        const got = await retrieve(candidates.slice(0, 2), context.domain!, context.sources);
-        context.sources.push(...got.sources);
-        context.attempted.push('Searched for OAuth capability evidence', ...got.attempts);
+      case 1:
+        await researchQuestions(context, ['oauth']);
         break;
-      }
-      case 2: {
-        let found: SearchResult[] = [];
-        try {
-          found = await searchWeb(
-            `${context.identity!.name} official developer app registration credentials redirect URL authentication documentation`,
-            providerDomains(context.domain!),
-          );
-        } catch (error) {
-          if (!providerReferenceResults(context.domain!, 'setup').length) throw error;
-          context.attempted.push('Search unavailable; checking the configured official setup documentation');
-        }
-        const candidates = [
-          ...providerReferenceResults(context.domain!, 'setup'),
-          ...found,
-        ].filter((item, index, all) => all.findIndex((candidate) => candidate.url === item.url) === index);
-        const got = await retrieve(candidates.slice(0, 2), context.domain!, context.sources);
-        context.sources.push(...got.sources);
-        context.attempted.push(
-          'Searched for registration, scopes and redirect documentation',
-          ...got.attempts,
-        );
-        const composio = await retrieve(
-          [
-            {
-              title: 'Composio managed auth',
-              url: 'https://docs.composio.dev/toolkits/managed-auth',
-              content: 'Current managed OAuth toolkit documentation.',
-            },
-            {
-              title: 'Composio custom auth',
-              url: 'https://docs.composio.dev/docs/authentication/custom-app-vs-managed-app',
-              content: 'Managed and custom authentication routes.',
-            },
-          ],
-          context.domain!,
-          [],
-        );
-        const newSources = composio.sources.map((s, i) => ({ ...s, id: `c${i + 1}` }));
-        context.sources.push(...newSources);
-        context.attempted.push(
-          'Checked Composio documentation for managed versus custom authentication',
-          ...composio.attempts,
-        );
+      case 2:
+        await researchQuestions(context, ['setup', 'scopes', 'managed_auth']);
         break;
-      }
       case 3: {
-        const found = await searchWeb(
-          `${context.identity!.name} OAuth app review approval external distribution marketplace security verification`,
-          providerDomains(context.domain!),
-        );
-        const got = await retrieve(
-          found.slice(0, 3),
-          context.domain!,
-          context.sources.filter((s) => !s.id.startsWith('c')),
-        );
-        context.sources.push(...got.sources);
-        context.attempted.push(
-          'Searched official-domain review and distribution requirements',
-          ...got.attempts,
-        );
-        if (!context.sources.length)
-          throw new Error(
-            'Documentation could not be retrieved. No factual guide can be generated.',
-          );
+        const deadline = Date.now() + researchLimits.stageDeadlineMs;
+        await researchQuestions(context, ['approval'], false, deadline);
+        await recoverEvidenceGaps(context, deadline);
         break;
       }
       case 4: {
@@ -302,10 +194,12 @@ export async function advanceJob(
           context.identity!,
           context.sources,
           context.attempted,
+          context.metrics,
         );
         break;
       }
       case 5: {
+        if (!context.draft || !sameOfficialDomain(context.draft.website, context.identity!.website) || context.draft.name !== context.identity!.name) throw new Error('Guide identity does not match the confirmed provider');
         context.draft = reconcileGuide(context.draft!, context.sources);
         context.attempted.push(
           'Validated guide schema, source references and retrieved destination URLs',
@@ -315,14 +209,16 @@ export async function advanceJob(
       }
       case 6: {
         if (!context.draft) throw new Error('No validated guide is available');
+        if (context.providerSlug) context.draft.slug = context.providerSlug;
         const safeSlug = context.draft.slug;
         const existing = await db.provider.findUnique({ where: { slug: safeSlug } });
-        if (existing && existing.website !== context.draft.website)
+        if (existing && !sameOfficialDomain(existing.website, context.draft.website))
           context.draft.slug = `${safeSlug}-${job.id.slice(-6)}`;
         const publication = await db.$transaction(async (tx) => {
           const current = await tx.researchJob.findFirst({ where: fence });
           if (!current) return false;
           const result = await saveGuide(context.draft!, { tx, publicationId: `research-${id}` });
+          measure('completed');
           await tx.researchJob.update({
             where: { id },
             data: {
@@ -352,6 +248,7 @@ export async function advanceJob(
       default:
         throw new Error('Invalid research stage');
     }
+    measure('completed');
     assertStageAdvance(job.currentStage, job.currentStage + 1);
     const updated = await db.researchJob.updateMany({
       where: fence,
@@ -370,6 +267,7 @@ export async function advanceJob(
       retryAfterMs: 0,
     };
   } catch (error) {
+    measure('failed');
     const message = error instanceof Error ? error.message : 'Research failed';
     const transient = isTransientResearchError(error);
     const code = error && typeof error === 'object' && 'code' in error ? String(error.code) : 'unknown';
@@ -428,7 +326,7 @@ export function sanitizeResearchError(message: string) {
     /configured|identity|ambiguous|retrieved|documentation|expired|scope|structured|source|guide|URL|OAuth|provider/i.test(
       message,
     ) &&
-    !/(sk-|tvly-|bearer|api_key)/i.test(message)
+    !/(sk-|tvly-|bearer|api_key|postgres|DATABASE_URL|https?:\/\/[^\s/]*@)/i.test(message)
   )
     return message.slice(0, 500);
   return 'The research service could not complete this stage. Check the server configuration or retry later. No approval or setup action was performed.';

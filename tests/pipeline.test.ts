@@ -54,13 +54,17 @@ afterAll(async () => {
 });
 beforeEach(async () => {
   vi.clearAllMocks();
+  mocks.identify.mockReset();
+  mocks.search.mockReset();
+  mocks.retrieve.mockReset();
+  mocks.synthesize.mockReset();
   await db.researchJob.deleteMany();
   await db.provider.deleteMany();
   await db.researchQuota.deleteMany();
   mocks.search.mockResolvedValue([
     { title: 'GitHub OAuth', url: guide.website, content: 'Official docs' },
   ]);
-  mocks.identify.mockResolvedValue({ name: guide.name, website: guide.website });
+  mocks.identify.mockResolvedValue({ name: guide.name, website: guide.website, ambiguous: false, candidates: [{ name: guide.name, website: guide.website, description: 'Synthetic company page', evidenceUrl: guide.website, evidenceSummary: 'Synthetic provider evidence' }], captures: guide.sources.map((source) => ({ ...source, capture: 'fetched', content: source.summary })) });
   mocks.retrieve
     .mockResolvedValue({ sources: [], attempts: ['No additional sources'] })
     .mockResolvedValueOnce({
@@ -69,13 +73,13 @@ beforeEach(async () => {
     });
   mocks.synthesize.mockResolvedValue(structuredClone(guide));
 });
-async function newJob() {
+async function newJob(nameInput = false) {
   return db.researchJob.create({
     data: {
       query: 'GitHub pipeline fixture',
       normalizedProvider: 'pipeline-fixture',
       completedStages: [],
-      context: { sources: [], attempted: [] },
+      context: { sources: [], attempted: [], ...(nameInput ? {} : { identityUrl: guide.website }) },
     },
   });
 }
@@ -89,7 +93,8 @@ describe('Research engine with mocked search and LLM, real SQLite persistence', 
       expect(current.completedStages).toHaveLength(stage + 1);
       expect(current.status).toBe(stage === 6 ? 'completed' : 'running');
     }
-    expect(mocks.search).toHaveBeenCalledTimes(4);
+    expect(mocks.search.mock.calls.length).toBeLessThanOrEqual(11);
+    expect(mocks.search.mock.calls.some((call) => call[0].includes('scopes'))).toBe(true);
     expect(mocks.synthesize).toHaveBeenCalledTimes(1);
     const saved = await db.guide.findFirstOrThrow({ include: { provider: true, sources: true } });
     expect(saved.provider.slug).toBe('pipeline-fixture');
@@ -107,8 +112,8 @@ describe('Research engine with mocked search and LLM, real SQLite persistence', 
     mocks.search.mockResolvedValueOnce([
       { title: 'Wiki', url: 'https://en.wikipedia.org/wiki/GitHub', content: '' },
     ]);
-    const job = await newJob();
-    expect((await advanceJob(job.id)).outcome).toBe('advanced');
+    const job = await newJob(true);
+    expect((await advanceJob(job.id)).outcome).toBe('blocked');
     expect(mocks.search).toHaveBeenCalledTimes(2);
     expect(mocks.identify.mock.calls[0][1]).toEqual([
       { title: 'GitHub OAuth', url: guide.website, content: 'Official docs' },
@@ -136,7 +141,7 @@ describe('Research engine with mocked search and LLM, real SQLite persistence', 
   });
   it('retries transient retrieval failures a bounded number of times before terminal failure', async () => {
     mocks.search.mockRejectedValue(new Error('Search provider unavailable (HTTP 503)'));
-    const job = await newJob();
+    const job = await newJob(true);
     expect((await advanceJob(job.id)).outcome).toBe('retry');
     expect((await advanceJob(job.id)).outcome).toBe('retry');
     const terminal = await advanceJob(job.id);
@@ -148,7 +153,7 @@ describe('Research engine with mocked search and LLM, real SQLite persistence', 
     expect(await db.guide.count()).toBe(0);
   });
   it('pauses OAuth research for identity confirmation, then resumes only the selected candidate', async () => {
-    const job = await newJob();
+    const job = await newJob(true);
     const candidateResults = [
       { title: 'Figma design platform', url: 'https://www.figma.com/', content: 'Collaborative design tools.' },
       { title: 'Figma Japan', url: 'https://figma.jp/', content: 'A separate local company.' },
@@ -165,6 +170,7 @@ describe('Research engine with mocked search and LLM, real SQLite persistence', 
           evidenceSummary: r.content,
         })),
         results: candidateResults,
+        captures: candidateResults.map((result) => ({ ...guide.sources[0], url: result.url, domain: new URL(result.url).hostname, content: result.content, capture: 'fetched' })),
       })
       .mockResolvedValueOnce({ name: 'Figma', website: 'https://www.figma.com', ambiguous: false });
 
@@ -182,7 +188,7 @@ describe('Research engine with mocked search and LLM, real SQLite persistence', 
     expect((state.context as { identity: { website: string } }).identity.website).toBe(
       'https://www.figma.com',
     );
-    expect(mocks.identify).toHaveBeenCalledTimes(2);
+    expect(mocks.identify).toHaveBeenCalledTimes(1);
   });
   it('rejects schema-invalid synthesis before saving', async () => {
     mocks.synthesize.mockResolvedValueOnce({ ...guide, difficulty: 'Unbelievably easy' });
@@ -217,13 +223,13 @@ describe('Research engine with mocked search and LLM, real SQLite persistence', 
       data: { leaseUntil: new Date(Date.now() - 1) },
     });
     expect((await advanceJob(job.id)).outcome).toBe('advanced');
-    expect(mocks.search).toHaveBeenCalledTimes(1);
+    expect(mocks.identify).toHaveBeenCalledTimes(1);
   });
   it('prevents two requests from executing a stage concurrently', async () => {
     let release!: (result: unknown[]) => void;
     const pending = new Promise<unknown[]>((resolve) => (release = resolve));
     mocks.search.mockReturnValueOnce(pending);
-    const job = await newJob();
+    const job = await newJob(true);
     const first = advanceJob(job.id);
     await vi.waitFor(() => expect(mocks.search).toHaveBeenCalledTimes(1));
     const second = await advanceJob(job.id);
@@ -231,14 +237,12 @@ describe('Research engine with mocked search and LLM, real SQLite persistence', 
     release([{ title: 'GitHub', url: guide.website, content: 'Official provider' }]);
     await first;
     expect(mocks.search).toHaveBeenCalledTimes(1);
-    expect((await db.researchJob.findUniqueOrThrow({ where: { id: job.id } })).currentStage).toBe(
-      1,
-    );
+    expect((await db.researchJob.findUniqueOrThrow({ where: { id: job.id } })).currentStage).toBe(0);
   });
   it('fences a stale worker after a different request reclaims the expired lease', async () => {
     let release!: (result: unknown[]) => void;
     mocks.search.mockReturnValueOnce(new Promise((resolve) => (release = resolve)));
-    const job = await newJob();
+    const job = await newJob(true);
     const stale = advanceJob(job.id);
     await vi.waitFor(() => expect(mocks.search).toHaveBeenCalledTimes(1));
     await db.researchJob.update({
@@ -249,8 +253,9 @@ describe('Research engine with mocked search and LLM, real SQLite persistence', 
     release([{ title: 'GitHub', url: guide.website, content: 'Official provider' }]);
     expect((await stale).outcome).toBe('superseded');
     const saved = await db.researchJob.findUniqueOrThrow({ where: { id: job.id } });
-    expect(saved.currentStage).toBe(1);
-    expect(saved.completedStages).toEqual([0]);
+    expect(saved.currentStage).toBe(0);
+    expect(saved.status).toBe('blocked');
+    expect(saved.completedStages).toEqual([]);
   });
   it('rolls back the guide and evidence if publication completion fails', async () => {
     const job = await newJob();
@@ -317,5 +322,77 @@ describe('Research engine with mocked search and LLM, real SQLite persistence', 
       delete process.env.RESEARCH_ACCESS_CODE;
       delete process.env.RESEARCH_PUBLIC_ACCESS;
     }
+  });
+});
+
+describe('Mandatory server-side intent and refresh', () => {
+  it.each([1, 2])('requires selection with %i credible candidate(s), even if ambiguous=false', async (count) => {
+    const job = await newJob(true);
+    const candidates = Array.from({ length: count }, (_, index) => ({ name: 'Mercury', website: index ? 'https://mercury.io' : 'https://mercury.com', description: index ? 'Monitoring company' : 'Banking company', evidenceUrl: index ? 'https://mercury.io/about' : 'https://mercury.com/about', evidenceSummary: 'Fetched company description' }));
+    mocks.identify.mockResolvedValueOnce({ name: 'Mercury', website: candidates[0].website, ambiguous: false, candidates, results: [] });
+    expect((await advanceJob(job.id)).outcome).toBe('blocked');
+    const stored = await db.researchJob.findUniqueOrThrow({ where: { id: job.id } });
+    expect(stored.context).toMatchObject({ selectionState: 'awaiting_provider_selection', identityOptions: candidates });
+    expect(stored.currentStage).toBe(0);
+    expect((await advanceJob(job.id)).outcome).toBe('blocked');
+    expect(mocks.search).toHaveBeenCalledTimes(1);
+    expect(mocks.synthesize).not.toHaveBeenCalled();
+    const { GET } = await import('@/app/api/research/[jobId]/route');
+    const resumed = await GET(new Request(`http://localhost/api/research/${job.id}`), { params: Promise.resolve({ jobId: job.id }) });
+    expect(await resumed.json()).toMatchObject({ selectionState: 'awaiting_provider_selection', status: 'blocked', identityCandidates: candidates.map((candidate, index) => ({ ...candidate, index })) });
+  });
+  it('asks for a website when no credible candidate exists', async () => {
+    mocks.identify.mockResolvedValueOnce({ ambiguous: false, candidates: [], results: [] });
+    const job = await newJob(true);
+    expect((await advanceJob(job.id)).outcome).toBe('blocked');
+    expect((await db.researchJob.findUniqueOrThrow({ where: { id: job.id } })).context).toMatchObject({ identityOptions: [], selectionState: 'awaiting_provider_selection' });
+  });
+  it('accepts an explicit website and records confirmation separately from discovery', async () => {
+    const job = await newJob();
+    await advanceJob(job.id);
+    const stored = await db.researchJob.findUniqueOrThrow({ where: { id: job.id } });
+    expect(stored.currentStage).toBe(1);
+    expect(stored.context).toMatchObject({ selectionState: 'confirmed', identityConfirmation: { method: 'explicit_url', website: guide.website }, identity: { website: guide.website } });
+    expect(mocks.search).not.toHaveBeenCalled();
+  });
+  it('pauses a cross-domain redirect instead of accepting the replacement identity', async () => {
+    mocks.identify.mockResolvedValueOnce({ name: 'Other', website: 'https://unrelated.example', ambiguous: false, candidates: [{ name: 'Other', website: 'https://unrelated.example', description: 'Redirected destination', evidenceUrl: 'https://unrelated.example', evidenceSummary: 'Observed redirect' }] });
+    const job = await newJob();
+    expect((await advanceJob(job.id)).outcome).toBe('blocked');
+    const stored = await db.researchJob.findUniqueOrThrow({ where: { id: job.id } });
+    expect(stored.context).not.toHaveProperty('identityConfirmation');
+    expect(stored.currentStage).toBe(0);
+  });
+  it('rejects direct advancement past discovery without persisted confirmation', async () => {
+    const job = await newJob(true);
+    await db.researchJob.update({ where: { id: job.id }, data: { currentStage: 1, context: { identity: { name: 'Fake', website: 'https://fake.example' }, sources: [], attempted: [] } } });
+    expect((await advanceJob(job.id)).outcome).toBe('failed');
+    expect(mocks.search).not.toHaveBeenCalled();
+    expect(mocks.synthesize).not.toHaveBeenCalled();
+  });
+  it('locks a selected candidate and never asks the model to choose again', async () => {
+    const job = await newJob(true);
+    await advanceJob(job.id);
+    expect((await advanceJob(job.id, { candidateIndex: 0 })).outcome).toBe('advanced');
+    await expect(advanceJob(job.id, { officialUrl: 'https://different.example' })).rejects.toThrow('identity is locked');
+    expect(mocks.identify).toHaveBeenCalledTimes(1);
+    expect((await db.researchJob.findUniqueOrThrow({ where: { id: job.id } })).context).toMatchObject({ identityConfirmation: { method: 'candidate', website: guide.website } });
+  });
+  it('does not silently reuse a saved provider from a text-only request; refresh preserves versions', async () => {
+    const { saveGuide } = await import('@/lib/db/guides');
+    await saveGuide(seedGuides[2]);
+    const create = (data: unknown) => createResearch(new Request('http://localhost:3000/api/research', { method: 'POST', body: JSON.stringify(data) }));
+    const named = await create({ query: 'GitHub' }).then((r) => r.json());
+    expect(named.existing).toBeUndefined();
+    expect(named.jobId).toBeTruthy();
+    const reused = await create({ query: seedGuides[2].website }).then((r) => r.json());
+    expect(reused).toMatchObject({ existing: true, fresh: false });
+    const refreshed = await create({ query: seedGuides[2].website, selectedProviderSlug: 'github', refresh: true }).then((r) => r.json());
+    expect(refreshed.jobId).toBeTruthy();
+    expect((await db.researchJob.findUniqueOrThrow({ where: { id: refreshed.jobId } })).context).toMatchObject({ refresh: true, providerSlug: 'github', identityConfirmation: { method: 'saved_provider' } });
+    await saveGuide({ ...seedGuides[2], provenance: { ...seedGuides[2].provenance, method: 'live_research' } });
+    const versions = await db.guide.findMany({ where: { provider: { slug: 'github' } }, orderBy: { version: 'asc' } });
+    expect(versions.map((g) => g.version)).toEqual([1, 2]);
+    expect(versions[1].content).toMatchObject({ provenance: { previousVersion: 1, evidenceChanges: expect.any(Array) } });
   });
 });

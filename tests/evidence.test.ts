@@ -121,12 +121,12 @@ describe('Classification consistency and relevant semantic support', () => {
       g.sources.map((s) => ({ ...s, text: s.content! })),
     );
     expect(output.oauthStatus).toBe('supported');
-    expect(output.description).toContain('Partial provider research');
+    expect(output.description).toContain('documented OAuth');
     expect(output.oauthEvidence.status).toBe('verified');
     expect(output.oauthEvidence.support?.review).toBe('rule_checked');
     expect(output.authenticationType).toBe('oauth2');
     expect(output.sources[0].content).toContain('OAuth 2.0');
-    expect(output.steps).toHaveLength(1);
+    expect(output.steps.filter((step) => step.routes.includes('custom')).map((step) => step.title)).toEqual(['Select permissions for the actions your agent needs', 'Complete the documented external-user requirements']);
   });
   it('does not classify OAuth 2.0 without an explicitly supported provider claim', () => {
     const g = liveGuide();
@@ -137,12 +137,12 @@ describe('Classification consistency and relevant semantic support', () => {
     const source = liveGuide().sources[0];
     source.url = 'https://developers.figma.com/docs/rest-api/authentication/';
     source.domain = 'developers.figma.com';
-    source.content = 'The recommended way is to create an OAuth 2 app. OAuth 2.0 uses authorization code.';
+    source.content = 'Figma uses OAuth 2.0 authorization code flow so third-party applications can access Figma resources on behalf of users.';
     source.capture = 'fetched';
     source.topics = ['oauth', 'general'];
-    expect(detectAuthenticationType([{ ...source, text: source.content }])).toMatchObject({
+    expect(detectAuthenticationType([source])).toMatchObject({
       type: 'oauth2',
-      passage: 'OAuth 2',
+      passage: source.content,
       source: { authority: 'provider', capture: 'fetched' },
     });
   });
@@ -153,7 +153,7 @@ describe('Classification consistency and relevant semantic support', () => {
     source.content = 'Kite Connect uses an OAuth-style login flow with request_token and checksum.';
     source.capture = 'fetched';
     source.topics = ['oauth', 'general'];
-    expect(detectAuthenticationType([{ ...source, text: source.content }])).toMatchObject({
+    expect(detectAuthenticationType([source])).toMatchObject({
       type: 'oauth_like_proprietary',
     });
   });
@@ -237,10 +237,10 @@ describe('Classification consistency and relevant semantic support', () => {
     const source = liveGuide().sources[0];
     source.url = 'https://provider.example/docs/auth';
     source.domain = 'provider.example';
-    source.content = text;
+    source.content = `Provider's API documentation: ${text}. This describes third-party application access to our API resources.`;
     source.capture = 'fetched';
     source.topics = ['oauth', 'general'];
-    expect(detectAuthenticationType([{ ...source, text: source.content }])?.type).toBe(expected);
+    expect(detectAuthenticationType([source])?.type).toBe(expected);
   });
   it('safely reads legacy records without retaining unsupported positive badges', () => {
     const g = liveGuide();
@@ -272,7 +272,7 @@ it('replaces a mismatched model excerpt with an exact fetched protocol passage',
     g,
     g.sources.map((s) => ({ ...s, text: s.content! })),
   );
-  expect(output.oauthEvidence.support?.references[0].passage).toBe('OAuth 2.0');
+  expect(output.oauthEvidence.support?.references[0].passage).toContain('Example supports OAuth 2.0');
   expect(output.oauthStatus).toBe('supported');
   expect(output.oauthEvidence.support?.review).toBe('rule_checked');
 });

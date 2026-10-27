@@ -1,0 +1,10 @@
+{
+  "input": "Airtable",
+  "startedAt": "2026-10-27T07:54:21.242Z",
+  "outcome": "failed",
+  "fresh": false,
+  "stages": [],
+  "sourceUrls": [],
+  "attempted": [],
+  "error": "fetch failed"
+}

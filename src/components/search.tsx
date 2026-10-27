@@ -9,13 +9,13 @@ export function Search({ guides, compact = false }: { guides: Guide[]; compact?:
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);
   const [index, setIndex] = useState(0);
+  const [keyboardSelected, setKeyboardSelected] = useState(false);
   const input = useRef<HTMLInputElement>(null);
   const root = useRef<HTMLDivElement>(null);
   const router = useRouter();
   const results = query.trim()
     ? guides.filter((g) => matches(g, query)).slice(0, 5)
     : guides.filter((g) => g.featured);
-  const exact = guides.find((g) => matches(g, query, true));
   useEffect(() => {
     const key = (e: KeyboardEvent) => {
       if (
@@ -38,8 +38,7 @@ export function Search({ guides, compact = false }: { guides: Guide[]; compact?:
   }, []);
   const research = () => router.push(`/research/new?q=${encodeURIComponent(query.trim())}`);
   const go = () => {
-    if (exact) router.push(`/providers/${exact.slug}`);
-    else if (results[index]) router.push(`/providers/${results[index].slug}`);
+    if (keyboardSelected && results[index]) router.push(`/providers/${results[index].slug}`);
     else if (query.trim().length >= 2) research();
   };
   return (
@@ -67,14 +66,17 @@ export function Search({ guides, compact = false }: { guides: Guide[]; compact?:
             setQuery(e.target.value);
             setOpen(true);
             setIndex(0);
+            setKeyboardSelected(false);
           }}
           onKeyDown={(e) => {
             if (e.key === 'Escape') setOpen(false);
             if (e.key === 'ArrowDown') {
+              setKeyboardSelected(true);
               e.preventDefault();
               setIndex((i) => Math.min(i + 1, results.length - 1));
             }
             if (e.key === 'ArrowUp') {
+              setKeyboardSelected(true);
               e.preventDefault();
               setIndex((i) => Math.max(0, i - 1));
             }
@@ -101,12 +103,12 @@ export function Search({ guides, compact = false }: { guides: Guide[]; compact?:
               <ProviderLogo guide={g} />
               <span>
                 {g.name}
-                <small>{g.category}</small>
+                <small>{new URL(g.website).hostname} · Saved guide</small>
               </span>
               <CornerDownLeft size={15} />
             </button>
           ))}
-          {query.trim().length >= 2 && !exact && (
+          {query.trim().length >= 2 && (
             <button className="research-result" onClick={research}>
               <Sparkles size={17} />
               <span>

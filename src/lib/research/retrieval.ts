@@ -1,13 +1,15 @@
 import { z } from 'zod';
 import { createHash } from 'node:crypto';
-import { fetchDocument, validateRemoteUrl } from './network';
+import { validateRemoteUrl } from './network';
+import { publicDocument } from './documents';
+import { boundedMap, researchLimits, type ResearchMetrics } from './limits';
 import type { Source } from '../validation';
 import { normalizeProviderDomain } from './identity';
 const searchSchema = z.object({
   results: z.array(z.object({ title: z.string(), url: z.string(), content: z.string() })).max(10),
 });
 export type SearchResult = z.infer<typeof searchSchema>['results'][number];
-export type Retrieved = Source & { text: string };
+export type Retrieved = Source;
 type ReferenceStage = 'authentication' | 'setup';
 // Kite Connect's official API docs live on kite.trade, separate from Zerodha's homepage.
 // These URLs are still fetched and validated before they can become evidence.
@@ -133,7 +135,11 @@ export function identityCandidates(results: SearchResult[], query: string) {
 export function providerDomain(homepage: string) {
   return new URL(homepage).hostname.replace(/^(www|support|help|docs|developer|developers)\./, '');
 }
-export async function searchWeb(query: string, domains: string[] = []): Promise<SearchResult[]> {
+export async function searchWeb(query: string, domains: string[] = [], metrics?: ResearchMetrics): Promise<SearchResult[]> {
+  if (metrics) {
+    if (metrics.searches >= researchLimits.searches) return [];
+    metrics.searches++;
+  }
   const response = await fetch('https://api.tavily.com/search', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -146,7 +152,7 @@ export async function searchWeb(query: string, domains: string[] = []): Promise<
       include_raw_content: false,
       ...(domains.length ? { include_domains: domains } : {}),
     }),
-    signal: AbortSignal.timeout(16000),
+    signal: AbortSignal.timeout(researchLimits.searchTimeoutMs),
   });
   if (!response.ok) throw new Error(`Search provider unavailable (HTTP ${response.status})`);
   const data = searchSchema.parse(await response.json());
@@ -166,14 +172,24 @@ export async function retrieve(
   results: SearchResult[],
   officialDomain: string,
   existing: Retrieved[] = [],
+  options: { metrics?: ResearchMetrics; fresh?: boolean; deadline?: number } = {},
 ) {
   const unique = results
     .filter(
       (r, i, a) =>
         a.findIndex((s) => s.url === r.url) === i && !existing.some((s) => s.url === r.url),
     )
-    .slice(0, Math.max(0, 9 - existing.length));
-  const outcomes = await Promise.allSettled(unique.map((r) => fetchDocument(r.url)));
+    .slice(0, Math.max(0, researchLimits.sources - existing.length));
+  const outcomes = await boundedMap(unique, async (r) => {
+    if (options.deadline && Date.now() >= options.deadline) throw new Error('Retrieval stage deadline exceeded');
+    if (options.metrics) {
+      if ((options.metrics.documentReads ?? 0) >= researchLimits.fetches) throw new Error('Document budget exhausted');
+      options.metrics.documentReads = (options.metrics.documentReads ?? 0) + 1;
+    }
+    const captured = await publicDocument(r.url, options.fresh, () => { if (options.metrics) options.metrics.fetches++; });
+    if (captured.cacheStatus === 'hit' && options.metrics) options.metrics.cacheHits++;
+    return captured;
+  });
   const sources: Retrieved[] = [];
   const attempts: string[] = [];
   outcomes.forEach((result, i) => {
@@ -184,7 +200,7 @@ export async function retrieve(
       );
       return;
     }
-    const doc = result.value;
+    const { document: doc, fetchedAt, cacheStatus } = result.value;
     const domain = new URL(doc.url).hostname;
     const community = /^(community|forum|forums)\./i.test(domain);
     const official =
@@ -193,14 +209,15 @@ export async function retrieve(
         (host) => domain === host || domain.endsWith(`.${host}`),
       ) ||
         domain === 'docs.composio.dev');
-    const id = `s${existing.length + sources.length + 1}`;
+    const id = `s${createHash('sha256').update(doc.url).digest('hex').slice(0, 10)}`;
+    if (existing.some((s) => s.url === doc.url) || sources.some((s) => s.url === doc.url)) return;
     sources.push({
       id,
       title: doc.title,
       url: doc.url,
       domain,
       type: official ? 'official' : 'third_party',
-      accessedAt: new Date().toISOString(),
+      accessedAt: fetchedAt,
       summary: `${doc.truncated ? 'Fetched bounded prefix (page truncated; not complete): ' : 'Fetched passage (not a search snippet): '}${doc.text.slice(0, 700)}`,
       authority:
         domain === 'docs.composio.dev' ? 'composio' : official ? 'provider' : 'third_party',
@@ -209,9 +226,11 @@ export async function retrieve(
       content: doc.text,
       originalUrl: initial.url,
       contentHash: createHash('sha256').update(doc.text).digest('hex'),
-      text: doc.text,
+      links: doc.links ?? [],
+      publishedAt: doc.publishedAt ?? null,
+      cacheStatus,
     });
-    attempts.push(`Retrieved ${doc.url} (${doc.text.length} readable characters)`);
+    attempts.push(`${cacheStatus === 'hit' ? 'Reused fresh public document capture' : 'Retrieved'} ${doc.url} (${doc.text.length} readable characters; fetched ${fetchedAt})`);
   });
   return { sources, attempts };
 }

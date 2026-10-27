@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { db } from '@/lib/db';
 import { researchInput } from '@/lib/validation';
-import { normalize, matches } from '@/lib/providers';
+import { normalize } from '@/lib/providers';
 import { listGuides } from '@/lib/db/guides';
 import { configurationError } from '@/lib/research/engine';
 import { consumeQuota, errorJson, sameOrigin, validAccessCode } from '@/lib/research/request';
@@ -23,7 +23,7 @@ export async function POST(request: Request) {
     const parsed = researchInput.safeParse(json);
     if (!parsed.success)
       return errorJson('Enter a provider name or a public HTTPS website URL (2–200 characters).');
-    const { query, useCase, accessCode } = parsed.data;
+    const { query, useCase, accessCode, refresh, selectedProviderSlug } = parsed.data;
     let target;
     try {
       target = parseResearchTarget(query);
@@ -35,19 +35,12 @@ export async function POST(request: Request) {
     if (!validAccessCode(accessCode))
       return errorJson('A valid research access code is required for this deployment.', 401);
     const library = await listGuides();
-    const existing = library.find((g) =>
-      target.kind === 'name'
-        ? matches(g, query, true)
-        : (() => {
-            try {
-              return sameOfficialDomain(new URL(g.website).hostname, target.domain);
-            } catch {
-              return false;
-            }
-          })(),
-    );
-    if (existing && !useCase)
-      return Response.json({ existing: true, url: `/providers/${existing.slug}` });
+    const selected = selectedProviderSlug ? library.find((guide) => guide.slug === selectedProviderSlug) : undefined;
+    if (selectedProviderSlug && !selected) return errorJson('Saved provider not found.', 404);
+    if (selected && target.kind !== 'name' && !sameOfficialDomain(selected.website, target.domain)) return errorJson('The selected provider and website do not match.');
+    const existing = selected ?? (target.kind !== 'name' ? library.find((guide) => sameOfficialDomain(guide.website, target.domain)) : undefined);
+    // Text-only name submissions always go through candidate discovery and confirmation.
+    if (existing && !refresh) return Response.json({ existing: true, fresh: false, url: `/providers/${existing.slug}` });
     const normalizedInput = target.kind === 'name' ? query : target.domain;
     const normalizedProvider = `${normalize(normalizedInput)}:${createHash('sha256')
       .update(useCase ?? '')
@@ -96,6 +89,8 @@ export async function POST(request: Request) {
         context: {
           ...(useCase ? { useCase } : {}),
           ...(target.kind !== 'name' ? { identityUrl: target.url } : {}),
+          refresh,
+          ...(selected ? { identity: { name: selected.name, website: selected.website }, identityUrl: selected.website, providerSlug: selected.slug, identityConfirmation: { method: 'saved_provider', website: selected.website, confirmedAt: new Date().toISOString() }, selectionState: 'confirmed' } : { selectionState: 'discovering' }),
           sources: [],
           attempted: [],
         },
@@ -108,7 +103,7 @@ export async function POST(request: Request) {
         'Research limit reached. Try again later; saved guides are still available.',
         429,
       );
-    console.error('Research creation failed', error);
+    console.error('Research creation failed', { kind: error instanceof Error ? error.name : 'unknown', code: error && typeof error === 'object' && 'code' in error ? String(error.code) : 'unknown' });
     return errorJson(
       'Research storage is unavailable. Please retry later; existing guides remain available.',
       503,

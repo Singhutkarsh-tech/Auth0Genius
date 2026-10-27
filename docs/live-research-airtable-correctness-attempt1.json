@@ -1,0 +1,226 @@
+{
+  "input": "Airtable",
+  "startedAt": "2026-10-27T07:54:35.144Z",
+  "outcome": "generated_pending_semantic_review",
+  "fresh": true,
+  "stages": [
+    {
+      "status": "queued",
+      "stage": 0,
+      "completedStages": []
+    },
+    {
+      "status": "blocked",
+      "stage": 0,
+      "completedStages": []
+    },
+    {
+      "status": "running",
+      "stage": 1,
+      "completedStages": [
+        0
+      ]
+    },
+    {
+      "status": "running",
+      "stage": 2,
+      "completedStages": [
+        0,
+        1
+      ]
+    },
+    {
+      "status": "running",
+      "stage": 3,
+      "completedStages": [
+        0,
+        1,
+        2
+      ]
+    },
+    {
+      "status": "running",
+      "stage": 4,
+      "completedStages": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "status": "running",
+      "stage": 5,
+      "completedStages": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ]
+    },
+    {
+      "status": "running",
+      "stage": 6,
+      "completedStages": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ]
+    },
+    {
+      "status": "completed",
+      "stage": 7,
+      "completedStages": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ]
+    }
+  ],
+  "sourceUrls": [
+    "https://www.airtable.com/templates/ai-product-launch/exphbcRG24l1PsKC0",
+    "https://support.airtable.com/articles/6811769763-third-party-integrations-via-oauth-overview",
+    "https://support.airtable.com/articles/9362950318-using-builder-hub-in-airtable",
+    "https://airtable.com/developers/web/api/introduction",
+    "https://docs.composio.dev/toolkits/airtable.md",
+    "https://docs.composio.dev/docs/authentication",
+    "https://airtable.com/developers/extensions"
+  ],
+  "attempted": [
+    "Discovered provider candidates from public page evidence. No OAuth research has started.",
+    "User confirmed provider identity: AI Product Launch Template, Plan, Execute & Track Product Launches (https://airtable.com). Selection establishes intent, not OAuth capability.",
+    "Searched for oauth: AI Product Launch Template, Plan, Execute & Track Product Launches official developer API OAuth authentication third-party access authorization reference",
+    "Retrieved https://support.airtable.com/articles/6811769763-third-party-integrations-via-oauth-overview (7975 readable characters; fetched 2026-10-27T07:54:45.373Z)",
+    "Searched for setup: AI Product Launch Template, Plan, Execute & Track Product Launches official register OAuth integration application developer hub redirect URL client ID",
+    "Searched for managed_auth: AI Product Launch Template, Plan, Execute & Track Product Launches Composio toolkit authentication managed OAuth available",
+    "Searched for scopes: AI Product Launch Template, Plan, Execute & Track Product Launches official API OAuth scopes permissions prerequisites",
+    "Retrieved https://support.airtable.com/articles/9362950318-using-builder-hub-in-airtable (4888 readable characters; fetched 2026-10-27T07:54:51.776Z)",
+    "Retrieved https://airtable.com/developers/web/api/introduction (762 readable characters; fetched 2026-10-27T07:54:50.503Z)",
+    "Retrieved https://docs.composio.dev/toolkits/airtable.md (14000 readable characters; fetched 2026-10-27T07:54:50.830Z)",
+    "Retrieved https://docs.composio.dev/docs/authentication (14000 readable characters; fetched 2026-10-27T07:54:50.985Z)",
+    "Searched for approval: AI Product Launch Template, Plan, Execute & Track Product Launches official OAuth integration external users distribution app review requirements privacy policy",
+    "Retrieved https://airtable.com/developers/extensions (142 readable characters; fetched 2026-10-27T07:54:56.603Z)",
+    "Evidence coverage gate: all required topics have relevant official evidence; claim interpretation still checked separately.",
+    "Compared retrieved evidence and synthesized a structured guide using OpenAI",
+    "Validated guide schema, source references and retrieved destination URLs"
+  ],
+  "jobId": "cmvqe3tpj0000y6v0q1kdxufu",
+  "model": "gpt-4.1-mini",
+  "metrics": {
+    "searches": 6,
+    "fetches": 8,
+    "cacheHits": 0,
+    "stages": [
+      {
+        "stage": 0,
+        "durationMs": 4248,
+        "outcome": "awaiting_provider_selection"
+      },
+      {
+        "stage": 0,
+        "durationMs": 0,
+        "outcome": "completed"
+      },
+      {
+        "stage": 1,
+        "durationMs": 4831,
+        "outcome": "completed"
+      },
+      {
+        "stage": 2,
+        "durationMs": 5562,
+        "outcome": "completed"
+      },
+      {
+        "stage": 3,
+        "durationMs": 4801,
+        "outcome": "completed"
+      },
+      {
+        "stage": 4,
+        "durationMs": 6231,
+        "outcome": "completed"
+      },
+      {
+        "stage": 5,
+        "durationMs": 2,
+        "outcome": "completed"
+      },
+      {
+        "stage": 6,
+        "durationMs": 20,
+        "outcome": "completed"
+      }
+    ],
+    "documentReads": 8,
+    "model": {
+      "name": "gpt-4.1-mini",
+      "inputTokens": 2542,
+      "outputTokens": 652,
+      "durationMs": 6222,
+      "inputCharacters": 10567,
+      "legacyInputCharacters": 107399
+    }
+  },
+  "coverage": {
+    "oauth": true,
+    "setup": true,
+    "scopes": true,
+    "approval": true,
+    "managed_auth": true
+  },
+  "identity": {
+    "name": "AI Product Launch Template, Plan, Execute & Track Product Launches",
+    "website": "https://airtable.com"
+  },
+  "confirmations": [
+    {
+      "requestedDomain": "airtable.com",
+      "candidateIndex": 0,
+      "website": "https://airtable.com",
+      "pausedBeforeSelection": true
+    }
+  ],
+  "outputUrl": "http://127.0.0.1:3190/providers/ai-product-launch-template-plan-execute-track-product-launches",
+  "claims": [
+    {
+      "topic": "oauth",
+      "classification": "supported",
+      "text": "Provider documentation describes third-party OAuth access to its resources.",
+      "status": "verified",
+      "passages": [
+        {
+          "sourceId": "s6c392e467e",
+          "passage": "Contact support Sign up for free Third-party integrations via OAuth overview Last updated 2 months ago Plan availabilityAll plan typesPermissionsOwner or Creator permissions are required to perform the actions outlined in this articlePlatform(s)Web/Browser, Mac app, and Windows appIf you are a developer looking to build an OAuth integration with Airtable and this is your first time testing OAuth functionality we recommend reading through the OAuth reference and utilizing the example setup repo.Understanding third-party services and OAuthOAuth integrations allow users to grant API access to their Airtable resources with third-party services. Third-party integration calls are initiated by the third-party requesting access to your Airtable resources. In addition, with OAuth Integration"
+        }
+      ]
+    },
+    {
+      "topic": "managed_auth",
+      "classification": "available",
+      "text": "Composio documents managed OAuth as available for AI Product Launch Template, Plan, Execute & Track Product Launches. Scope fit and successful authorization are separate checks.",
+      "status": "verified",
+      "passages": [
+        {
+          "sourceId": "s630a1da8b2",
+          "passage": " **Category:** productivity - **Auth:** OAUTH2, API_KEY - **Composio-managed OAuth available?** Yes - **Tools:** 28 - **Triggers:** 6 - **S"
+        }
+      ]
+    },
+    {
+      "topic": "approval",
+      "classification": "unknown",
+      "text": "This investigation did not establish whether provider review is required for your intended distribution.",
+      "status": "unverified",
+      "passages": []
+    }
+  ]
+}
